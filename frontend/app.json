@@ -28,7 +28,7 @@
       "bundler": "metro"
     },
     "extra": {
-      "apiBaseUrl": "http://localhost:8000"
+      "apiBaseUrl": "https://dtx-backend-o1nl.onrender.com"
     }
   }
 }

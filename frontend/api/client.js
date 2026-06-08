@@ -53,13 +53,25 @@ let _axiosLib        = axios;  // replaceable by tests
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
-// For physical device: use LAN IP. For emulator: use 10.0.2.2
-// Change this IP to match your computer's local network IP.
-const BACKEND_URL = 'http://192.168.1.201:8000';
+// Base URL resolution priority:
+//   1. EXPO_PUBLIC_API_URL — set in frontend/.env (production Render URL)
+//   2. DEV_API_URL         — optional override for local dev (rarely needed)
+//   3. http://10.0.2.2:8000 — Android emulator loopback to host machine
+//
+// EXPO_PUBLIC_* variables are inlined into the bundle at Expo build time.
+// They are read at module-evaluation time, so the resolved value is baked in
+// for managed-workflow builds (EAS Build / expo export).
+//
+// For local physical-device dev: set EXPO_PUBLIC_API_URL=http://<LAN_IP>:8000
+// in frontend/.env — this file is gitignored and never committed.
+const BACKEND_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  process.env.DEV_API_URL          ||
+  'http://10.0.2.2:8000';
 
 const DEFAULT_CONFIG = {
   baseURL:         BACKEND_URL,
-  timeout:         8000,                      // 8 000 ms — physical device may be slower
+  timeout:         10000,                     // 10 000 ms — Render free tier cold-starts ~5s
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Accept':       'application/json',
