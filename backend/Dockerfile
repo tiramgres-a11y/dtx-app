@@ -1,8 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# DTx Backend — Production Dockerfile
-# Base image : python:3.11-slim  (minimal Debian; no dev tools)
-# Server     : gunicorn + UvicornWorker  (production-grade ASGI)
-# Security   : non-root user, no secrets baked in — all secrets via env vars
+# Lumen Health Backend — Production Dockerfile
+# Build context : backend/   (set via render.yaml dockerContext: backend)
+# Base image    : python:3.11-slim  (minimal Debian; no dev tools)
+# Server        : gunicorn + UvicornWorker  (production-grade ASGI)
+# Security      : non-root user, no secrets baked in — all secrets via env vars
+#
+# Path resolution (all relative to build context = backend/):
+#   COPY requirements.txt ./   →  backend/requirements.txt          ✓
+#   COPY . ./backend/          →  backend/* → /app/backend/*        ✓
+#   gunicorn backend.app.main  →  WORKDIR /app → /app/backend/app/main.py  ✓
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.11-slim AS base
@@ -25,8 +31,9 @@ RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
 # ── Application source ────────────────────────────────────────────────────────
-# Copy the entire backend directory into /app/backend so that
-# Python can resolve "from backend.app.main import app"
+# Build context is backend/, so "." is the backend directory.
+# Copying into /app/backend/ preserves the "backend.app.main" import path:
+#   WORKDIR /app  +  /app/backend/app/main.py  →  gunicorn backend.app.main:app
 COPY . ./backend/
 
 # ── Ownership ────────────────────────────────────────────────────────────────

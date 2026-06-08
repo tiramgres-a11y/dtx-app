@@ -14,10 +14,14 @@ services:
   - type: web
     name: dtx-backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    # Build from the project root so COPY . ./backend/ in the Dockerfile
-    # picks up the backend directory correctly.
-    dockerContext: .
+    # dockerContext: the directory Docker uses as its build root.
+    # Set to "backend" so that:
+    #   • COPY requirements.txt ./   resolves to backend/requirements.txt  ✓
+    #   • COPY . ./backend/          copies backend/ contents into /app/backend/  ✓
+    # dockerfilePath is resolved relative to dockerContext, so "Dockerfile"
+    # refers to backend/Dockerfile.
+    dockerContext: backend
+    dockerfilePath: Dockerfile
 
     # ── Scaling ──────────────────────────────────────────────────────────────
     plan: free          # change to "starter" or "standard" for production SLAs
