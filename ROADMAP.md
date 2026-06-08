@@ -1,6 +1,7 @@
 ﻿# מפת דרכים — Lumen Health | אפליקציית מניעת סוכרת
-**Status: MVP Complete & Audited | UI/UX Gamification Polish Complete | Content Curation Module Complete | PostgreSQL Migration Complete | Local Build Infrastructure & Debug APK Complete | Cloud Infrastructure Configured | Rebranding to Lumen Health Complete** ✅
+**Status: MVP Complete & Audited | UI/UX Gamification Polish Complete | Content Curation Module Complete | PostgreSQL Migration Complete | Local Build Infrastructure & Debug APK Complete | Cloud Infrastructure Configured | Rebranding to Lumen Health Complete | GitHub Repository Synced** ✅
 **Last Updated:** 2026-06-08
+**Repository:** https://github.com/tiramgres-a11y/dtx-app
 **Language:** Hebrew (עברית) — RTL throughout UI, AI responses, and clinical logs
 **Encoding:** UTF-8 (strict, enforced across all files)
 
@@ -500,6 +501,7 @@ Worker 2      →  frontend/src/               (React Native app)
   - Test suites: test_content_curation.py (40/40 Python) + frontend/test_external_resource.js (34/34 JS)
   - Auto-debug: (1) native module require() in Node → replaced with package.json/file existence checks; (2) inline Hebrew accessibilityHint → moved to ACTION_OPEN_ACCESSIBILITY_HINT locale key
 - **LLM Router Status:** Complete ✅ (2026-06-07) — `backend/llm_router.py` v2; model `claude-sonnet-4-6`; 14/14 pytest passed, 1 live test skipped; `POST /api/v1/mentor/chat` wired
+- **GitHub Repository Status:** Synced ✅ (2026-06-08) — `git init` → `.gitignore` hardened (excluded `.claude/`, 6 unrelated sibling projects, `*.docx`) → 138 files staged, secrets audit passed (0 `.env` files staged) → commit `dcb23a4` → `git branch -M main` → `git remote add origin https://github.com/tiramgres-a11y/dtx-app` → `git push -u origin main` succeeded; branch `main` tracks `origin/main`
 - **Rebranding Status:** Complete ✅ (2026-06-08) — App display name → "Lumen Health" (`app.json` `name` field); file headers updated across `App.js`, `DashboardScreen.js`, `client.js`, `AppNavigator.js`; ROADMAP H1 updated; system identifiers (`slug`, `bundleIdentifier`, `android.package`) unchanged; backend LLM prompts, Dockerfile, render.yaml untouched
 - **Cloud Infrastructure Status:** Complete ✅ (2026-06-08) — `backend/Dockerfile` (python:3.11-slim, gunicorn+uvicorn); `render.yaml` (Web Service, secrets via dashboard); Dockerfile static lint PASS; Docker daemon unavailable on build machine — validate `docker build -t dtx-backend ./backend` once Docker Desktop is running
 - Next action: Sprint 2 — PostgreSQL integration + Worker 1 → Orchestrator sync endpoint wiring
