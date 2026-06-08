@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Alembic env.py — configured for DTx backend.
+Alembic env.py — configured for Lumen Health backend.
 
-Uses DTX_DATABASE_URL env var (falls back to local PostgreSQL default).
+URL priority (first match wins):
+  1. DATABASE_URL     env var — set by Render / production host
+  2. DTX_DATABASE_URL env var — legacy local-dev name (backward compat)
+  3. sqlite:///./dtx.db       — zero-config fallback
+
 Imports Base.metadata from backend.models so autogenerate can diff all tables.
 """
 
@@ -26,10 +30,17 @@ if config.config_file_name is not None:
 # Inject DATABASE_URL from environment (overrides alembic.ini placeholder)
 # ---------------------------------------------------------------------------
 
-_db_url = os.getenv(
-    "DTX_DATABASE_URL",
-    "postgresql+psycopg2://dtx:dtx@localhost:5432/dtx",
+# Mirror the same priority logic used in backend/database.py.
+_db_url: str = (
+    os.getenv("DATABASE_URL")
+    or os.getenv("DTX_DATABASE_URL")
+    or "sqlite:///./dtx.db"
 )
+
+# Normalise legacy postgres:// → postgresql:// (SQLAlchemy 1.4+ requirement).
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+
 config.set_main_option("sqlalchemy.url", _db_url)
 
 # ---------------------------------------------------------------------------
