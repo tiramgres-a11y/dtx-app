@@ -29,7 +29,9 @@ from backend.app import db_service
 # Localisation
 # ---------------------------------------------------------------------------
 
-_ROOT         = Path(__file__).resolve().parents[2]
+# parents[1] = backend/  (backend/app/sos.py → backend/app → backend)
+# he.json lives at backend/locales/he.json so it is included in the Docker build context.
+_ROOT         = Path(__file__).resolve().parents[1]
 _LOCALES_PATH = _ROOT / "locales" / "he.json"
 
 

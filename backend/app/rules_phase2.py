@@ -38,7 +38,9 @@ from backend.app.schemas import (
 # Locale loader for action labels (same pattern as rules_phase3.py)
 # ---------------------------------------------------------------------------
 
-_LOCALES_PATH_P2 = Path(__file__).resolve().parents[2] / "locales" / "he.json"
+# parents[1] = backend/  (backend/app/rules_phase2.py → backend/app → backend)
+# he.json lives at backend/locales/he.json so it is included in the Docker build context.
+_LOCALES_PATH_P2 = Path(__file__).resolve().parents[1] / "locales" / "he.json"
 
 def _load_locales_p2() -> dict[str, str]:
     with open(_LOCALES_PATH_P2, encoding="utf-8") as fh:

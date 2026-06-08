@@ -33,7 +33,10 @@ from backend.app.rules_phase2 import evaluate_phase2, CONTENT_URLS as P2_URLS
 from backend.app.rules_phase3 import evaluate_phase3, CONTENT_URLS_P3 as P3_URLS
 
 
-ROOT = Path(__file__).resolve().parents[2]  # project root (backend/tests/ → backend/ → root)
+# ROOT      → backend/       used for backend/locales/he.json
+# REPO_ROOT → project root   used for cross-project file checks (frontend components)
+ROOT      = Path(__file__).resolve().parents[1]   # backend/tests/ → backend/
+REPO_ROOT = Path(__file__).resolve().parents[2]   # backend/tests/ → backend/ → repo root
 
 
 def _req(**kwargs) -> EvaluationRequest:
@@ -166,12 +169,12 @@ def test_phase1_no_action_url(week):
 
 
 def test_external_resource_button_file_exists():
-    path = ROOT / "frontend" / "components" / "ExternalResourceButton.js"
+    path = REPO_ROOT / "frontend" / "components" / "ExternalResourceButton.js"
     assert path.exists(), f"ExternalResourceButton.js not found at {path}"
 
 
 def test_external_resource_button_no_inline_hebrew():
-    path = ROOT / "frontend" / "components" / "ExternalResourceButton.js"
+    path = REPO_ROOT / "frontend" / "components" / "ExternalResourceButton.js"
     content = path.read_text(encoding="utf-8")
     import re
     # Strip single-line comments
@@ -188,14 +191,14 @@ def test_external_resource_button_no_inline_hebrew():
 
 
 def test_external_resource_button_uses_web_browser():
-    path = ROOT / "frontend" / "components" / "ExternalResourceButton.js"
+    path = REPO_ROOT / "frontend" / "components" / "ExternalResourceButton.js"
     content = path.read_text(encoding="utf-8")
     assert "expo-web-browser" in content or "WebBrowser" in content
 
 
 def test_external_resource_button_rtl_margin():
     import re
-    path = ROOT / "frontend" / "components" / "ExternalResourceButton.js"
+    path = REPO_ROOT / "frontend" / "components" / "ExternalResourceButton.js"
     content = path.read_text(encoding="utf-8")
     # Strip comments before checking (comments may legitimately mention marginLeft)
     no_comments = re.sub(r"//[^\n]*", "", content)

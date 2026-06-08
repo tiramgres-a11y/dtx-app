@@ -39,7 +39,9 @@ from backend.app.schemas import (
 # Locale loader (cached at import time)
 # ---------------------------------------------------------------------------
 
-_LOCALES_PATH = Path(__file__).resolve().parents[2] / "locales" / "he.json"
+# parents[1] = backend/  (backend/app/rules_phase3.py → backend/app → backend)
+# he.json lives at backend/locales/he.json so it is included in the Docker build context.
+_LOCALES_PATH = Path(__file__).resolve().parents[1] / "locales" / "he.json"
 
 
 def _load_locales() -> dict[str, str]:
