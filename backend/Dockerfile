@@ -1,14 +1,31 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Lumen Health Backend — Production Dockerfile
-# Build context : backend/   (set via render.yaml dockerContext: backend)
-# Base image    : python:3.11-slim  (minimal Debian; no dev tools)
-# Server        : gunicorn + UvicornWorker  (production-grade ASGI)
-# Security      : non-root user, no secrets baked in — all secrets via env vars
 #
-# Path resolution (all relative to build context = backend/):
-#   COPY requirements.txt ./   →  backend/requirements.txt          ✓
-#   COPY . ./backend/          →  backend/* → /app/backend/*        ✓
-#   gunicorn backend.app.main  →  WORKDIR /app → /app/backend/app/main.py  ✓
+# Build context  : backend/   (render.yaml: dockerContext: backend)
+#   All COPY paths below are relative to backend/:
+#     COPY requirements.txt ./  →  backend/requirements.txt        ✓
+#     COPY . ./backend/         →  backend/* → /app/backend/*      ✓
+#
+# dockerfilePath : backend/Dockerfile  (render.yaml: relative to repo root)
+#   Render resolves dockerfilePath from the REPOSITORY root, not from
+#   dockerContext.  "Dockerfile" alone would give "no such file" — must be
+#   "backend/Dockerfile".
+#
+# Runtime import resolution  (why the CMD uses "backend.app.main:app"):
+#   Every source file uses absolute imports: "from backend.XXX import …"
+#   This requires "backend" to be a package visible on sys.path.
+#   Layout inside the container:
+#     WORKDIR  /app               →  /app added to sys.path by Python/gunicorn
+#     COPY . ./backend/           →  /app/backend/__init__.py   ✓
+#                                    /app/backend/app/main.py   ✓
+#                                    /app/backend/database.py   ✓
+#   Therefore "backend.app.main" resolves to /app/backend/app/main.py  ✓
+#   Switching to "app.main:app" would require /app/app/main.py which does
+#   NOT exist and would crash with ModuleNotFoundError on every worker start.
+#
+# Base image : python:3.11-slim  (minimal Debian; no dev tools)
+# Server     : gunicorn + UvicornWorker  (production-grade ASGI)
+# Security   : non-root user, no secrets baked in — all secrets via env vars
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.11-slim AS base

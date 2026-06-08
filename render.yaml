@@ -14,14 +14,16 @@ services:
   - type: web
     name: dtx-backend
     runtime: docker
-    # dockerContext: the directory Docker uses as its build root.
-    # Set to "backend" so that:
-    #   • COPY requirements.txt ./   resolves to backend/requirements.txt  ✓
-    #   • COPY . ./backend/          copies backend/ contents into /app/backend/  ✓
-    # dockerfilePath is resolved relative to dockerContext, so "Dockerfile"
-    # refers to backend/Dockerfile.
+    # dockerContext : directory Docker uses as the build root (relative to repo root).
+    #   Set to "backend" so internal COPY instructions resolve correctly:
+    #     COPY requirements.txt ./   →  backend/requirements.txt       ✓
+    #     COPY . ./backend/          →  backend/* → /app/backend/*     ✓
+    #
+    # dockerfilePath : path to the Dockerfile, ALWAYS relative to the repo root
+    #   (Render's documented behaviour — NOT relative to dockerContext).
+    #   Therefore this must be "backend/Dockerfile", not just "Dockerfile".
     dockerContext: backend
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
 
     # ── Scaling ──────────────────────────────────────────────────────────────
     plan: free          # change to "starter" or "standard" for production SLAs
