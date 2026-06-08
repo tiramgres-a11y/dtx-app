@@ -1,0 +1,161 @@
+// @flow
+/**
+ * endpoints.js — Typed function wrappers for all Orchestrator API routes.
+ *
+ * ROUTE REGISTRY (matches backend/app/main.py + backend/app/sos.py):
+ *
+ *   POST /api/v1/evaluate          — EvaluationRequest  → EvaluationResponse
+ *   POST /api/v1/sos/trigger       — SOSTriggerRequest  → SOSTriggerResponse
+ *   POST /api/v1/sos/resolve       — SOSResolveRequest  → SOSResolveResponse
+ *
+ * NOTE ON ALIAS:
+ *   The ROADMAP specifies `/api/v1/engine/evaluate` as the conceptual name.
+ *   The live backend route is `/api/v1/evaluate`.
+ *   Both names are exported here; `evaluateMetrics` uses the live route.
+ *   When the backend path is updated in Sprint 2, change ROUTES.EVALUATE only.
+ *
+ * All callers receive the full Axios response.data object on success,
+ * or a re-thrown Axios error (with .._dtx metadata attached by client.js).
+ */
+
+'use strict';
+
+const { getInstance } = require('./client');
+
+// ---------------------------------------------------------------------------
+// Route constants — single source of truth for all backend paths
+// ---------------------------------------------------------------------------
+const ROUTES = {
+  HEALTH:           '/health',
+  EVALUATE:         '/api/v1/evaluate',              // live backend route
+  EVALUATE_ALIAS:   '/api/v1/engine/evaluate',       // ROADMAP conceptual name (future)
+  SOS_TRIGGER:      '/api/v1/sos/trigger',
+  SOS_RESOLVE:      '/api/v1/sos/resolve',
+  WEEKLY_SUMMARY:   '/api/v1/engine/weekly-summary', // Weekly aggregator
+};
+
+// ---------------------------------------------------------------------------
+// Health-check (used by network tests and app startup probe)
+// ---------------------------------------------------------------------------
+
+/**
+ * Ping the Orchestrator health endpoint.
+ * @returns {Promise<{ status: string, phase: string }>}
+ */
+async function healthCheck() {
+  const res = await getInstance().get(ROUTES.HEALTH);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Core Orchestrator endpoints
+// ---------------------------------------------------------------------------
+
+/**
+ * evaluateMetrics — POST /api/v1/evaluate
+ *
+ * Sends a daily health snapshot to the Orchestrator for clinical rule evaluation.
+ * Corresponds to EvaluationRequest schema (backend/app/schemas.py).
+ *
+ * @param {{
+ *   user_id:      string,
+ *   current_week: number,
+ *   sleep?:       { duration_hours: number },
+ *   steps?:       { steps: number, idle_minutes: number },
+ *   strength?:    { logged: boolean, duration_minutes?: number }
+ * }} payload
+ *
+ * @returns {Promise<EvaluationResponse>}
+ */
+async function evaluateMetrics(payload) {
+  const res = await getInstance().post(ROUTES.EVALUATE, payload);
+  return res.data;
+}
+
+/**
+ * triggerSOS — POST /api/v1/sos/trigger
+ *
+ * Fires the SOS craving protocol for a given user and week context.
+ *
+ * @param {{
+ *   user_id:      string,
+ *   week_context: number
+ * }} payload
+ *
+ * @returns {Promise<SOSTriggerResponse>}
+ */
+async function triggerSOS(payload) {
+  const res = await getInstance().post(ROUTES.SOS_TRIGGER, payload);
+  return res.data;
+}
+
+/**
+ * resolveSOS — POST /api/v1/sos/resolve
+ *
+ * Closes the loop on a craving event with a resolution status.
+ * On LAPSE, the Orchestrator queues the morning intervention payload.
+ *
+ * @param {{
+ *   user_id:              string,
+ *   event_timestamp_utc:  string,
+ *   status:               'SUCCESS' | 'LAPSE',
+ *   week_context?:        number
+ * }} payload
+ *
+ * @returns {Promise<SOSResolveResponse>}
+ */
+async function resolveSOS(payload) {
+  const res = await getInstance().post(ROUTES.SOS_RESOLVE, payload);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+/**
+ * logExerciseSession — POST /api/v1/evaluate (Phase 2 exercise path)
+ *
+ * Logs a completed exercise session and returns Orchestrator evaluation
+ * (may include GLUT4 affirmation for STRENGTH sessions).
+ *
+ * @param {{
+ *   user_id:      string,
+ *   current_week: number,
+ *   exercise:     { type: 'STRENGTH'|'CARDIO', duration_minutes: number, completed: boolean }
+ * }} payload
+ *
+ * @returns {Promise<EvaluationResponse>}
+ */
+async function logExerciseSession(payload) {
+  const res = await getInstance().post(ROUTES.EVALUATE, payload);
+  return res.data;
+}
+
+/**
+ * fetchWeeklySummary — POST /api/v1/engine/weekly-summary
+ *
+ * Submits a batch of DailyRecord objects and receives aggregated weekly
+ * statistics + an OARS reflective question in Hebrew.
+ *
+ * @param {{
+ *   user_id:      string,
+ *   current_week: number,
+ *   days:         Array<DailyRecord>
+ * }} payload
+ *
+ * @returns {Promise<WeeklySummaryResponse>}
+ */
+async function fetchWeeklySummary(payload) {
+  const res = await getInstance().post(ROUTES.WEEKLY_SUMMARY, payload);
+  return res.data;
+}
+
+module.exports = {
+  healthCheck,
+  evaluateMetrics,
+  logExerciseSession,
+  fetchWeeklySummary,
+  triggerSOS,
+  resolveSOS,
+  ROUTES,
+};

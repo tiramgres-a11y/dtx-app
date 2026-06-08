@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# render.yaml — Infrastructure-as-Code for Render cloud deployment
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy:
+#   1. Push this file to the root of your GitHub/GitLab repository.
+#   2. Connect the repo to Render → "New Blueprint".
+#   3. Render will detect this file and provision the service automatically.
+#   4. Set the secret env var values in the Render dashboard (they are NOT
+#      stored here — sync: false means Render will prompt you on first deploy).
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: dtx-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    # Build from the project root so COPY . ./backend/ in the Dockerfile
+    # picks up the backend directory correctly.
+    dockerContext: .
+
+    # ── Scaling ──────────────────────────────────────────────────────────────
+    plan: free          # change to "starter" or "standard" for production SLAs
+    numInstances: 1
+
+    # ── Health check ─────────────────────────────────────────────────────────
+    healthCheckPath: /health
+
+    # ── Environment variables ─────────────────────────────────────────────────
+    # sync: false = secret; value is set once in the Render dashboard and is
+    # NEVER committed to source control. Render redeploys automatically when
+    # the value is rotated.
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # secret — set in Render dashboard
+
+      - key: DATABASE_URL
+        sync: false          # secret — Render Postgres connection string
+
+      - key: WEB_CONCURRENCY
+        value: "2"           # gunicorn worker count; tune per instance size
+
+      - key: PORT
+        value: "8000"
+
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"

@@ -1,0 +1,220 @@
+# -*- coding: utf-8 -*-
+"""
+db_service.py — Database CRUD service layer.
+
+Replaces all mock_state.json read/write operations with transactional
+SQLAlchemy calls.  Every function accepts a Session as its first argument;
+commit/rollback is the caller's responsibility (handled by get_db dependency
+or an explicit transaction block in tests).
+
+Functions mirror the previous JSON helpers in main.py, sos.py, and scheduler.py
+so that the refactor is a drop-in replacement at the call site.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from backend.models import (
+    MorningQueueEntry,
+    NotificationLog,
+    SOSEvent,
+    UserState,
+)
+
+
+# ---------------------------------------------------------------------------
+# UserState helpers
+# ---------------------------------------------------------------------------
+
+
+def get_user_state(db: Session, user_id: str) -> UserState | None:
+    """Return the UserState row for user_id, or None if not found."""
+    return db.get(UserState, user_id)
+
+
+def get_or_create_user(db: Session, user_id: str) -> UserState:
+    """
+    Return existing UserState or create a new one with defaults.
+    Does NOT commit — caller commits via get_db() or explicit transaction.
+    """
+    user = db.get(UserState, user_id)
+    if user is None:
+        user = UserState(user_id=user_id)
+        db.add(user)
+        db.flush()   # assign any DB-generated defaults without committing
+    return user
+
+
+def get_baseline_rhr(db: Session, user_id: str) -> int | None:
+    """
+    Look up a user's personal baseline resting HR.
+    Returns None if user not found or no baseline stored.
+    Replaces main.py::_get_baseline_rhr().
+    """
+    user = db.get(UserState, user_id)
+    if user is not None and user.baseline_rhr is not None:
+        return user.baseline_rhr
+    return None
+
+
+def upsert_baseline_rhr(db: Session, user_id: str, baseline_rhr: int) -> UserState:
+    """
+    Store / update a user's baseline RHR.
+    Creates the UserState row if it doesn't exist.
+    Replaces main.py::_upsert_baseline_rhr().
+    """
+    user = get_or_create_user(db, user_id)
+    user.baseline_rhr = baseline_rhr
+    db.flush()
+    return user
+
+
+# ---------------------------------------------------------------------------
+# SOS Event helpers
+# ---------------------------------------------------------------------------
+
+
+def append_sos_event(
+    db: Session,
+    user_id: str,
+    week_context: int,
+    timestamp_utc: str,
+) -> SOSEvent:
+    """
+    Insert a new SOS trigger event (append-only).
+    Replaces sos.py::_append_sos_event().
+    """
+    event = SOSEvent(
+        user_id=user_id,
+        week_context=week_context,
+        timestamp_utc=timestamp_utc,
+    )
+    db.add(event)
+    db.flush()   # get the auto-generated id without committing
+    return event
+
+
+def resolve_sos_event(
+    db: Session,
+    user_id: str,
+    event_timestamp_utc: str,
+    resolution_status: str,
+    resolved_at_utc: str,
+) -> bool:
+    """
+    Locate a SOS event by (user_id, timestamp_utc) and set resolution fields.
+    Returns True if a matching unresolved event was found, False otherwise.
+    Invariant: existing columns never overwritten — only null columns set.
+    Replaces sos.py::_resolve_sos_event().
+    """
+    stmt = (
+        select(SOSEvent)
+        .where(SOSEvent.user_id == user_id)
+        .where(SOSEvent.timestamp_utc == event_timestamp_utc)
+    )
+    event: SOSEvent | None = db.scalars(stmt).first()
+    if event is None:
+        return False
+    event.resolution_status = resolution_status
+    event.resolved_at_utc   = resolved_at_utc
+    db.flush()
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Morning Queue helpers
+# ---------------------------------------------------------------------------
+
+
+def queue_morning_payload(
+    db: Session,
+    user_id: str,
+    header_he: str,
+    oars_affirmation_he: str,
+    habit_reset_he: str,
+    queued_at_utc: str,
+) -> MorningQueueEntry:
+    """
+    Append a morning intervention payload for delivery at the next session.
+    Replaces sos.py::_queue_morning_payload().
+    """
+    entry = MorningQueueEntry(
+        user_id=user_id,
+        header_he=header_he,
+        oars_affirmation_he=oars_affirmation_he,
+        habit_reset_he=habit_reset_he,
+        queued_at_utc=queued_at_utc,
+    )
+    db.add(entry)
+    db.flush()
+    return entry
+
+
+def get_morning_queue(db: Session, user_id: str) -> list[MorningQueueEntry]:
+    """Return all queued morning payloads for a user (ordered by queued_at_utc)."""
+    stmt = (
+        select(MorningQueueEntry)
+        .where(MorningQueueEntry.user_id == user_id)
+        .order_by(MorningQueueEntry.queued_at_utc)
+    )
+    return list(db.scalars(stmt).all())
+
+
+# ---------------------------------------------------------------------------
+# Scheduler helpers
+# ---------------------------------------------------------------------------
+
+
+def get_all_users(db: Session) -> list[UserState]:
+    """Return all UserState rows — used by the scheduler to scan Phase 3 users."""
+    return list(db.scalars(select(UserState)).all())
+
+
+def record_notification(
+    db: Session,
+    notification_type: str,
+    user_id: str,
+    sent_at: str,
+    iso_week: str,
+    current_week: int,
+    push_message: str,
+    oars_question: str,
+) -> NotificationLog:
+    """
+    Append a notification to the audit log.
+    Replaces the inline log_entry dict written to mock_state.json in scheduler.py.
+    """
+    log = NotificationLog(
+        notification_type=notification_type,
+        user_id=user_id,
+        sent_at=sent_at,
+        iso_week=iso_week,
+        current_week=current_week,
+        push_message=push_message,
+        oars_question=oars_question,
+    )
+    db.add(log)
+    db.flush()
+    return log
+
+
+def update_scheduler_metadata(
+    db: Session,
+    user: UserState,
+    iso_week: str,
+    current_week: int,
+    dispatched_at: str,
+) -> None:
+    """
+    Update idempotency fields on a UserState after a notification is sent.
+    Replaces the inline dict mutation in scheduler.py.
+    """
+    user.last_notified_iso_week  = iso_week
+    user.last_notified_week      = current_week
+    user.last_notified_timestamp = dispatched_at
+    user.notifications_sent      = (user.notifications_sent or 0) + 1
+    db.flush()

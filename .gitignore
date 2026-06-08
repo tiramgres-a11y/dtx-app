@@ -1,0 +1,82 @@
+# ── Secrets — NEVER commit these ────────────────────────────────────────────
+.env
+backend/.env
+**/.env
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.python-version
+*.pyc
+
+# ── Pytest / coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# ── Node / React Native ──────────────────────────────────────────────────────
+node_modules/
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# ── Android build ────────────────────────────────────────────────────────────
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/local.properties
+*.apk
+*.aab
+
+# ── IDE ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Database ─────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Claude Code session data — NEVER commit ───────────────────────────────────
+.claude/
+
+# ── Unrelated sibling projects (co-located but not part of this repo) ─────────
+CardioNutri/
+tuscany_app/
+Genesis_DASH/
+Genesis_TaskCenter_Webhook/
+Genesis_Template_Spoke/
+genesis_ai_training/
+genesis_blueprint_analyzer/
+
+# ── Miscellaneous root-level artefacts ────────────────────────────────────────
+*.docx
+*.doc
+# Root-level package.json/lock belong to no sub-project — exclude if present
+/package.json
+/package-lock.json

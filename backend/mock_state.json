@@ -1,0 +1,11 @@
+{
+  "users": {},
+  "sos_events": [],
+  "morning_queue": [],
+  "user_baselines": {
+    "cc-test-001": {
+      "baseline_rhr": 60
+    }
+  },
+  "notifications_log": []
+}
