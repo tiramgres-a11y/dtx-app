@@ -110,15 +110,37 @@ def resolve_sos_event(
     Returns True if a matching unresolved event was found, False otherwise.
     Invariant: existing columns never overwritten — only null columns set.
     Replaces sos.py::_resolve_sos_event().
+
+    Lookup strategy (in order):
+      1. Exact match on (user_id, timestamp_utc) — happy path.
+      2. Fallback: latest unresolved event for user_id — handles the case where
+         the frontend sent a client-generated timestamp instead of the server's
+         (e.g. when res.event_timestamp_utc was undefined and JS fell back to
+         new Date().toISOString()).
     """
+    # --- Strategy 1: exact timestamp match ---
     stmt = (
         select(SOSEvent)
         .where(SOSEvent.user_id == user_id)
         .where(SOSEvent.timestamp_utc == event_timestamp_utc)
+        .where(SOSEvent.resolution_status.is_(None))
     )
     event: SOSEvent | None = db.scalars(stmt).first()
+
+    # --- Strategy 2: latest unresolved event for this user (fallback) ---
+    if event is None:
+        fallback_stmt = (
+            select(SOSEvent)
+            .where(SOSEvent.user_id == user_id)
+            .where(SOSEvent.resolution_status.is_(None))
+            .order_by(SOSEvent.id.desc())
+            .limit(1)
+        )
+        event = db.scalars(fallback_stmt).first()
+
     if event is None:
         return False
+
     event.resolution_status = resolution_status
     event.resolved_at_utc   = resolved_at_utc
     db.flush()

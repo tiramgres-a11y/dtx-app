@@ -80,6 +80,9 @@ class SOSTriggerResponse(BaseModel):
     closing_message_he: str
     event_logged: bool
     timestamp_utc: str
+    # event_timestamp_utc mirrors timestamp_utc so the frontend can use either
+    # field name when constructing the subsequent /resolve request.
+    event_timestamp_utc: str
 
 
 _PROTOCOL_STEPS: list[SOSProtocolStep] = [
@@ -145,6 +148,7 @@ async def sos_trigger(
         closing_message_he=HE["SOS_CLOSING_HE"],
         event_logged=event_logged,
         timestamp_utc=timestamp,
+        event_timestamp_utc=timestamp,  # alias — matches frontend's res.event_timestamp_utc
     )
 
 
