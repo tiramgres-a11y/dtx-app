@@ -1,7 +1,7 @@
 // @flow
 /**
  * AppNavigator — Bottom-tab navigation for Lumen Health.
- * Tabs: Dashboard | SOS | History | Settings
+ * Tabs: Dashboard | Coach | SOS | History | Settings
  */
 
 import React from 'react';
@@ -9,6 +9,7 @@ import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import DashboardScreen from '../screens/DashboardScreen';
+import CoachScreen     from '../screens/CoachScreen';
 import SOSScreen       from '../screens/SOSScreen';
 import HistoryScreen   from '../screens/HistoryScreen';
 import SettingsScreen  from '../screens/SettingsScreen';
@@ -53,6 +54,14 @@ export default function AppNavigator() {
         options={{
           tabBarLabel: t('TAB_DASHBOARD'),
           tabBarIcon:  ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="Coach"
+        component={CoachScreen}
+        options={{
+          tabBarLabel: t('TAB_COACH'),
+          tabBarIcon:  ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
         }}
       />
       <Tab.Screen

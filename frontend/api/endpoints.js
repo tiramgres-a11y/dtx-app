@@ -32,6 +32,7 @@ const ROUTES = {
   SOS_TRIGGER:      '/api/v1/sos/trigger',
   SOS_RESOLVE:      '/api/v1/sos/resolve',
   WEEKLY_SUMMARY:   '/api/v1/engine/weekly-summary', // Weekly aggregator
+  MENTOR_CHAT:      '/api/v1/mentor/chat',           // AI Mentor Coach (Claude)
 };
 
 // ---------------------------------------------------------------------------
@@ -150,6 +151,33 @@ async function fetchWeeklySummary(payload) {
   return res.data;
 }
 
+/**
+ * sendMentorMessage — POST /api/v1/mentor/chat
+ *
+ * Sends a free-text question (plus optional physiological context) to the
+ * AI Mentor Coach and receives an OARS-compliant Hebrew response, optionally
+ * with an action_url/action_label deep-link (recipe / exercise).
+ *
+ * Uses an extended 45s timeout: the LLM round-trip plus a Render free-tier
+ * cold start can exceed the default 10s client timeout.
+ *
+ * @param {{
+ *   user_id:        string,
+ *   current_week:   number,
+ *   free_text?:     string,
+ *   sleep_hours?:   number,
+ *   steps?:         number,
+ *   resting_hr?:    number,
+ *   baseline_rhr?:  number
+ * }} payload
+ *
+ * @returns {Promise<{ mentor_text: string, action_url: string|null, action_label: string|null }>}
+ */
+async function sendMentorMessage(payload) {
+  const res = await getInstance().post(ROUTES.MENTOR_CHAT, payload, { timeout: 45000 });
+  return res.data;
+}
+
 module.exports = {
   healthCheck,
   evaluateMetrics,
@@ -157,5 +185,6 @@ module.exports = {
   fetchWeeklySummary,
   triggerSOS,
   resolveSOS,
+  sendMentorMessage,
   ROUTES,
 };

@@ -218,8 +218,17 @@
 
   "TAB_DASHBOARD":   "דשבורד",
   "TAB_SOS":         "SOS",
+  "TAB_COACH":       "המאמן שלי",
   "TAB_HISTORY":     "היסטוריה",
   "TAB_SETTINGS":    "הגדרות",
+
+  "COACH_SCREEN_TITLE":      "המאמן האישי שלך",
+  "COACH_EMPTY_STATE":       "כאן אפשר לשאול אותי כל דבר — על תזונה, אימונים, שינה, או פשוט לשתף איך עבר היום. אני כאן בשבילך.",
+  "COACH_INPUT_PLACEHOLDER": "כתוב לי מה שעל ליבך…",
+  "COACH_SEND_BTN":          "שלח",
+  "COACH_TYPING":            "המאמן מקליד…",
+  "COACH_ERROR":             "לא הצלחתי להתחבר למאמן כרגע. בדוק את החיבור ונסה שוב.",
+  "COACH_RETRY_BTN":         "נסה שוב",
 
   "SOS_SCREEN_TITLE":          "ערכת חירום — ניהול דחף",
   "SOS_TRIGGER_BTN":           "הפעל פרוטוקול SOS",
