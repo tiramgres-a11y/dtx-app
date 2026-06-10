@@ -33,6 +33,7 @@ const ROUTES = {
   SOS_RESOLVE:      '/api/v1/sos/resolve',
   WEEKLY_SUMMARY:   '/api/v1/engine/weekly-summary', // Weekly aggregator
   MENTOR_CHAT:      '/api/v1/mentor/chat',           // AI Mentor Coach (Claude)
+  MENTOR_HISTORY:   '/api/v1/mentor/history',        // Persisted conversation log
 };
 
 // ---------------------------------------------------------------------------
@@ -178,6 +179,26 @@ async function sendMentorMessage(payload) {
   return res.data;
 }
 
+/**
+ * fetchMentorHistory — GET /api/v1/mentor/history
+ *
+ * Restores the persisted Coach conversation so the chat survives app
+ * restarts. Messages come back in chronological order.
+ *
+ * @param {string} userId
+ * @param {number} [limit=30]
+ * @returns {Promise<{ user_id: string, messages: Array<{
+ *   role: 'user'|'coach', content: string,
+ *   action_url: string|null, action_label: string|null,
+ *   created_at_utc: string }> }>}
+ */
+async function fetchMentorHistory(userId, limit = 30) {
+  const res = await getInstance().get(ROUTES.MENTOR_HISTORY, {
+    params: { user_id: userId, limit },
+  });
+  return res.data;
+}
+
 module.exports = {
   healthCheck,
   evaluateMetrics,
@@ -186,5 +207,6 @@ module.exports = {
   triggerSOS,
   resolveSOS,
   sendMentorMessage,
+  fetchMentorHistory,
   ROUTES,
 };

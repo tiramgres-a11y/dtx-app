@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models import (
+    MentorMessage,
     MorningQueueEntry,
     NotificationLog,
     SOSEvent,
@@ -240,3 +241,66 @@ def update_scheduler_metadata(
     user.last_notified_timestamp = dispatched_at
     user.notifications_sent      = (user.notifications_sent or 0) + 1
     db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Mentor conversation helpers
+# ---------------------------------------------------------------------------
+
+
+def append_mentor_message(
+    db: Session,
+    user_id: str,
+    role: str,
+    content: str,
+    created_at_utc: str,
+    action_url: str | None = None,
+    action_label: str | None = None,
+) -> MentorMessage:
+    """Insert one mentor-chat message (append-only)."""
+    msg = MentorMessage(
+        user_id=user_id,
+        role=role,
+        content=content,
+        action_url=action_url,
+        action_label=action_label,
+        created_at_utc=created_at_utc,
+    )
+    db.add(msg)
+    db.flush()
+    return msg
+
+
+def get_recent_mentor_messages(
+    db: Session,
+    user_id: str,
+    limit: int = 12,
+) -> list[MentorMessage]:
+    """
+    Return the most recent `limit` messages for a user in CHRONOLOGICAL order
+    (oldest first) — ready for LLM prompt injection and frontend rendering.
+    """
+    stmt = (
+        select(MentorMessage)
+        .where(MentorMessage.user_id == user_id)
+        .order_by(MentorMessage.id.desc())
+        .limit(limit)
+    )
+    rows = list(db.scalars(stmt).all())
+    rows.reverse()
+    return rows
+
+
+def get_recent_sos_events(
+    db: Session,
+    user_id: str,
+    limit: int = 3,
+) -> list[SOSEvent]:
+    """Most recent SOS events (newest first) — context for the mentor prompt."""
+    stmt = (
+        select(SOSEvent)
+        .where(SOSEvent.user_id == user_id)
+        .order_by(SOSEvent.id.desc())
+        .limit(limit)
+    )
+    return list(db.scalars(stmt).all())

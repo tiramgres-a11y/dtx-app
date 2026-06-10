@@ -167,3 +167,32 @@ class NotificationLog(Base):
             f"<NotificationLog id={self.id} user_id={self.user_id!r} "
             f"iso_week={self.iso_week!r}>"
         )
+
+
+# ---------------------------------------------------------------------------
+# MentorMessage — AI coach conversation log (append-only)
+# ---------------------------------------------------------------------------
+
+
+class MentorMessage(Base):
+    """
+    Append-only log of the mentor-chat conversation.
+
+    One row per message; role is either 'user' or 'coach'.
+    Recent rows are injected into the LLM prompt as conversation memory,
+    and served to the frontend via GET /api/v1/mentor/history so the chat
+    survives app restarts.
+    """
+
+    __tablename__ = "mentor_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(8), nullable=False)  # 'user' | 'coach'
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    action_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at_utc: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<MentorMessage id={self.id} user_id={self.user_id!r} role={self.role!r}>"

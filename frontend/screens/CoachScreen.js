@@ -16,7 +16,7 @@
  *   ✓ RTL layout via tokens.RTL; no marginLeft/Right — only Start/End
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 
-import { sendMentorMessage }                    from '../api/endpoints';
+import { sendMentorMessage, fetchMentorHistory } from '../api/endpoints';
 import { useUser }                              from '../context/UserContext';
 import ExternalResourceButton                   from '../components/ExternalResourceButton';
 import { COLORS, FONT, SPACING, RADIUS, RTL }   from '../components/tokens';
@@ -47,6 +47,26 @@ export default function CoachScreen() {
   const [isSending, setIsSending] = useState(false);
 
   const listRef = useRef(null);
+
+  // Restore persisted conversation on mount — chat survives app restarts.
+  // Silent failure: an empty chat with the welcome state is a fine fallback.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchMentorHistory(userId);
+        if (cancelled || !res?.messages?.length) return;
+        setMessages(res.messages.map((m) => ({
+          id:          nextId(),
+          role:        m.role === 'coach' ? 'coach' : 'user',
+          text:        m.content,
+          actionUrl:   m.action_url   || null,
+          actionLabel: m.action_label || null,
+        })));
+      } catch (_err) { /* offline / first run — keep empty state */ }
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const scrollToEnd = useCallback(() => {
     // Defer so FlatList has rendered the new row first

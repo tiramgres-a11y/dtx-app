@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -173,13 +174,19 @@ async def evaluate(
 
 
 @app.post("/api/v1/mentor/chat", response_model=MentorResponse)
-async def mentor_chat(request: MentorChatRequest) -> MentorResponse:
+async def mentor_chat(
+    request: MentorChatRequest,
+    db: Session = Depends(get_db),
+) -> MentorResponse:
     """
-    AI Mentor Coach — powered by Claude (LLM Router).
+    AI Mentor Coach — powered by Claude (LLM Router) v3.
 
-    Accepts physiological data (sleep, steps, HR) + DTx week and returns
-    a personalised, OARS-compliant Hebrew coach message with an optional
-    recipe or exercise link.
+    Cognitive control room: the prompt receives conversation memory
+    (last 12 messages from mentor_messages) + recent SOS events + the user's
+    DB-stored programme state, so responses are context-aware and the dialogue
+    continues across requests and app restarts.
+
+    Both the user message and the coach reply are persisted (append-only).
 
     Requires ANTHROPIC_API_KEY to be set in backend/.env.
     """
@@ -192,11 +199,53 @@ async def mentor_chat(request: MentorChatRequest) -> MentorResponse:
         }.items()
         if v is not None
     }
+
+    # Context loading + persistence are best-effort: conversation memory is an
+    # enhancement — a DB hiccup must never block the AI response itself.
+    history: list = []
+    sos_context: list = []
     try:
-        return get_mentor_response(
+        # Fill baseline RHR from DB when the client didn't send one
+        if "baseline_rhr" not in physiological_data:
+            db_baseline = db_service.get_baseline_rhr(db, request.user_id)
+            if db_baseline is not None:
+                physiological_data["baseline_rhr"] = db_baseline
+
+        # Conversation memory — loaded BEFORE persisting the new user message
+        history = [
+            {"role": m.role, "content": m.content}
+            for m in db_service.get_recent_mentor_messages(db, request.user_id, limit=12)
+        ]
+
+        # Recent SOS events as physiological/behavioural context
+        sos_context = [
+            {
+                "timestamp_utc":     ev.timestamp_utc,
+                "resolution_status": ev.resolution_status,
+            }
+            for ev in db_service.get_recent_sos_events(db, request.user_id, limit=3)
+        ]
+
+        if request.free_text:
+            db_service.append_mentor_message(
+                db=db,
+                user_id=request.user_id,
+                role="user",
+                content=request.free_text,
+                created_at_utc=datetime.now(timezone.utc).isoformat(),
+            )
+    except Exception as exc:
+        logger.warning("mentor_chat: context load failed — continuing without memory. %s", exc)
+        db.rollback()
+        history, sos_context = [], []
+
+    try:
+        response = get_mentor_response(
             physiological_data=physiological_data,
             dtx_week=request.current_week,
             free_text=request.free_text,
+            history=history,
+            sos_context=sos_context,
         )
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -206,6 +255,54 @@ async def mentor_chat(request: MentorChatRequest) -> MentorResponse:
             status_code=502,
             detail="שגיאה בתקשורת עם שירות ה-AI. אנא נסה שוב מאוחר יותר.",
         ) from exc
+
+    try:
+        db_service.append_mentor_message(
+            db=db,
+            user_id=request.user_id,
+            role="coach",
+            content=response.mentor_text,
+            action_url=response.action_url,
+            action_label=response.action_label,
+            created_at_utc=datetime.now(timezone.utc).isoformat(),
+        )
+        # get_db() commits on successful return
+    except Exception as exc:
+        logger.warning("mentor_chat: failed to persist coach reply. %s", exc)
+        db.rollback()
+
+    return response
+
+
+@app.get("/api/v1/mentor/history")
+async def mentor_history(
+    user_id: str,
+    limit: int = 30,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Conversation history for the Coach chat screen — chronological order.
+    Lets the frontend restore the dialogue after app restarts.
+    """
+    try:
+        messages = db_service.get_recent_mentor_messages(db, user_id, limit=limit)
+    except Exception as exc:
+        logger.warning("mentor_history: load failed — returning empty. %s", exc)
+        db.rollback()
+        messages = []
+    return {
+        "user_id": user_id,
+        "messages": [
+            {
+                "role":          m.role,
+                "content":       m.content,
+                "action_url":    m.action_url,
+                "action_label":  m.action_label,
+                "created_at_utc": m.created_at_utc,
+            }
+            for m in messages
+        ],
+    }
 
 
 @app.post("/api/v1/user/baseline-rhr")
