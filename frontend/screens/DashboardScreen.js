@@ -29,6 +29,7 @@ import {
   StatusBar,
   Platform,
   UIManager,
+  AppState,
 } from 'react-native';
 
 // Enable LayoutAnimation on Android (used by child components)
@@ -104,11 +105,14 @@ export default function DashboardScreen() {
   // Connected-but-empty (e.g. Mi Fitness not syncing into Health Connect yet)
   // shows an explanatory banner instead of fabricated numbers.
   const [hasWatchData, setHasWatchData] = useState(true);
+  const [lastSyncAt,   setLastSyncAt]   = useState(null);
+  const [isSyncing,    setIsSyncing]    = useState(false);
 
   // Attempt a real Health Connect sync on mount.
   // Graceful degradation: if the SDK / permissions / data are unavailable,
   // fall back to manual-logging mode (the screen already supports it).
   const _syncHealthConnect = useCallback(async () => {
+    setIsSyncing(true);
     try {
       const ok = await healthConnect.initHealthConnect();
       if (!ok) { setIsSensorActive(false); return; }
@@ -134,12 +138,24 @@ export default function DashboardScreen() {
       }
       setHasWatchData(anyData);
       setIsSensorActive(true);
+      setLastSyncAt(new Date());
     } catch (_err) {
       setIsSensorActive(false);
+    } finally {
+      setIsSyncing(false);
     }
   }, [userId, currentWeek]);
 
   useEffect(() => { _syncHealthConnect(); }, [_syncHealthConnect]);
+
+  // Re-sync whenever the app returns to the foreground — Health Connect data
+  // changes while we're backgrounded (watch syncs, Mi Fitness writes).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') _syncHealthConnect();
+    });
+    return () => sub.remove();
+  }, [_syncHealthConnect]);
 
   // ── Phase 2 state ─────────────────────────────────────────────────────
   const [restingHr,         setRestingHr]         = useState(null); // real value arrives from sync
@@ -304,6 +320,26 @@ export default function DashboardScreen() {
               </View>
             )}
 
+            {/* Manual re-sync + last-sync time */}
+            <View style={[styles.syncRow, RTL.row]}>
+              <TouchableOpacity
+                style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
+                onPress={_syncHealthConnect}
+                disabled={isSyncing}
+                accessibilityRole="button"
+                accessibilityLabel={t('METRICS_SYNC_NOW')}
+              >
+                <Text style={styles.syncBtnText}>
+                  {isSyncing ? t('METRICS_SYNCING') : t('METRICS_SYNC_NOW')}
+                </Text>
+              </TouchableOpacity>
+              {lastSyncAt && (
+                <Text style={[styles.syncTime, RTL.text]}>
+                  {t('METRICS_LAST_SYNC')} {lastSyncAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              )}
+            </View>
+
             <MetricBar
               label={t('METRICS_SLEEP_LABEL')}
               value={sleepHours}
@@ -460,6 +496,29 @@ const styles = StyleSheet.create({
     fontSize:  FONT.sm,
     marginTop: SPACING.xxs,
     // color set inline from theme
+  },
+  syncRow: {
+    alignItems: 'center',
+    marginTop:  SPACING.sm,
+  },
+  syncBtn: {
+    backgroundColor:   COLORS.primaryLight,
+    borderColor:       COLORS.primary,
+    borderWidth:       1,
+    borderRadius:      RADIUS.pill,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   SPACING.xxs,
+  },
+  syncBtnDisabled: { opacity: 0.5 },
+  syncBtnText: {
+    fontSize:   FONT.xs,
+    fontWeight: '600',
+    color:      COLORS.primary,
+  },
+  syncTime: {
+    fontSize:    FONT.xxs,
+    color:       COLORS.textSecondary,
+    marginStart: SPACING.sm,
   },
   devToggle: {
     paddingHorizontal: SPACING.sm,

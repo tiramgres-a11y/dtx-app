@@ -117,15 +117,35 @@ async function getPermissionStatus() {
 // ---------------------------------------------------------------------------
 
 /**
- * Build an ISO-8601 date range for a single calendar day in UTC.
+ * Build an ISO-8601 date range for a single calendar day in LOCAL time.
+ * Local boundaries matter: a UTC day in Israel (UTC+2/+3) starts at 02:00–03:00
+ * local, which silently excludes early-morning records and last night's sleep.
  * @param {Date} date
  * @returns {{ startTime: string, endTime: string }}
  */
 function _dayRange(date) {
   const start = new Date(date);
-  start.setUTCHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
   const end = new Date(date);
-  end.setUTCHours(23, 59, 59, 999);
+  end.setHours(23, 59, 59, 999);
+  return {
+    startTime: start.toISOString(),
+    endTime:   end.toISOString(),
+  };
+}
+
+/**
+ * Sleep window for a given day: yesterday 18:00 local → today 14:00 local.
+ * Night sleep starts the previous evening — a same-day range misses it.
+ * @param {Date} date
+ * @returns {{ startTime: string, endTime: string }}
+ */
+function _sleepRange(date) {
+  const start = new Date(date);
+  start.setDate(start.getDate() - 1);
+  start.setHours(18, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(14, 0, 0, 0);
   return {
     startTime: start.toISOString(),
     endTime:   end.toISOString(),
@@ -138,7 +158,7 @@ function _dayRange(date) {
  * @returns {Promise<Array>}
  */
 async function _fetchRawSleep(date) {
-  const { startTime, endTime } = _dayRange(date);
+  const { startTime, endTime } = _sleepRange(date);
   const result = await HealthConnect.readRecords('SleepSession', {
     timeRangeFilter: { operator: 'between', startTime, endTime },
   });
@@ -415,11 +435,13 @@ async function syncDailyMetrics(userId, currentWeek, date = new Date()) {
   let sleepResult = null;
   try {
     const rawSleep = await _fetchRawSleep(date);
+    console.log(`[HC-sync] sleep: ${rawSleep.length} raw records`);
     sleepResult    = transformSleep(rawSleep);
     if (sleepResult) {
       payloads.push(_toPayload(userId, 'sleep', sleepResult, 'hours', date));
     }
   } catch (err) {
+    console.log(`[HC-sync] sleep ERROR: ${err.message}`);
     errors.push(`sleep_fetch_error: ${err.message}`);
   }
 
@@ -427,11 +449,13 @@ async function syncDailyMetrics(userId, currentWeek, date = new Date()) {
   let stepsResult = null;
   try {
     const rawSteps = await _fetchRawSteps(date);
+    console.log(`[HC-sync] steps: ${rawSteps.length} raw records`);
     stepsResult    = transformSteps(rawSteps);
     if (stepsResult) {
       payloads.push(_toPayload(userId, 'steps', stepsResult, 'count+minutes', date));
     }
   } catch (err) {
+    console.log(`[HC-sync] steps ERROR: ${err.message}`);
     errors.push(`steps_fetch_error: ${err.message}`);
   }
 
@@ -439,13 +463,20 @@ async function syncDailyMetrics(userId, currentWeek, date = new Date()) {
   let heartRateResult = null;
   try {
     const rawHR    = await _fetchRawHeartRate(date);
+    console.log(`[HC-sync] heartRate: ${rawHR.length} raw records`);
     heartRateResult = transformHeartRate(rawHR);
     if (heartRateResult) {
       payloads.push(_toPayload(userId, 'heart_rate', heartRateResult, 'bpm', date));
     }
   } catch (err) {
+    console.log(`[HC-sync] heartRate ERROR: ${err.message}`);
     errors.push(`heart_rate_fetch_error: ${err.message}`);
   }
+
+  console.log(
+    `[HC-sync] result: sleep=${JSON.stringify(sleepResult)} ` +
+    `steps=${JSON.stringify(stepsResult)} hr=${JSON.stringify(heartRateResult)}`
+  );
 
   // ── Assemble Orchestrator-ready EvaluationRequest body ─────────────────
   const syncedAt = new Date().toISOString();
