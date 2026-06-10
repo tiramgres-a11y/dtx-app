@@ -120,7 +120,7 @@ function makeFallbackCapture() {
 console.log('\n=== Test 1: Axios Instance Configuration ===');
 record('DEFAULT_CONFIG.baseURL is set',
        typeof client.DEFAULT_CONFIG.baseURL === 'string' && client.DEFAULT_CONFIG.baseURL.startsWith('http'));
-record('DEFAULT_CONFIG.timeout = 5000',  client.DEFAULT_CONFIG.timeout === 5000);
+record('DEFAULT_CONFIG.timeout = 10000', client.DEFAULT_CONFIG.timeout === 10000);
 record('Content-Type includes utf-8',
        client.DEFAULT_CONFIG.headers['Content-Type'].includes('utf-8'));
 record('Accept-Charset is utf-8',

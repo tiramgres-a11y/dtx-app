@@ -42,6 +42,8 @@ import { evaluateMetrics }     from '../api/endpoints';
 import { getTheme }            from '../utils/theme';
 import { RTL, COLORS, FONT, SPACING, RADIUS } from '../components/tokens';
 import SensorStatusBadge       from '../components/SensorStatusBadge';
+import BreathingModule         from '../components/BreathingModule';
+import * as healthConnect      from '../services/healthConnectService';
 import MetricBar               from '../components/MetricBar';
 import SleepQuickTap           from '../components/SleepQuickTap';
 import MilestoneChecklist      from '../components/MilestoneChecklist';
@@ -97,6 +99,41 @@ export default function DashboardScreen() {
   // ── Core graceful-degradation toggle ─────────────────────────────────
   const [isSensorActive, setIsSensorActive] = useState(true);
 
+  // ── Sensor data — real Health Connect values replace the mock on sync ──
+  const [sensorData, setSensorData] = useState(MOCK_SENSOR_DATA);
+
+  // Attempt a real Health Connect sync on mount.
+  // Graceful degradation: if the SDK / permissions / data are unavailable,
+  // fall back to manual-logging mode (the screen already supports it).
+  const _syncHealthConnect = useCallback(async () => {
+    try {
+      const ok = await healthConnect.initHealthConnect();
+      if (!ok) { setIsSensorActive(false); return; }
+
+      const status = await healthConnect.getPermissionStatus();
+      if (!status.steps && !status.sleep) {
+        const granted = await healthConnect.requestPermissions();
+        if (!granted || granted.length === 0) { setIsSensorActive(false); return; }
+      }
+
+      const result = await healthConnect.syncDailyMetrics(userId, currentWeek);
+      setSensorData((prev) => ({
+        ...prev,
+        sleepHours:    result.sleep?.duration_hours ?? prev.sleepHours,
+        steps:         result.steps?.steps          ?? prev.steps,
+        sedentaryMins: result.steps?.idle_minutes   ?? prev.sedentaryMins,
+      }));
+      if (result.heart_rate?.resting_bpm) {
+        setRestingHr(result.heart_rate.resting_bpm);
+      }
+      setIsSensorActive(true);
+    } catch (_err) {
+      setIsSensorActive(false);
+    }
+  }, [userId, currentWeek]);
+
+  useEffect(() => { _syncHealthConnect(); }, [_syncHealthConnect]);
+
   // ── Phase 2 state ─────────────────────────────────────────────────────
   const [restingHr,         setRestingHr]         = useState(MOCK_RESTING_HR);
   const [rhrTrend,          setRhrTrend]           = useState('stable');
@@ -108,11 +145,14 @@ export default function DashboardScreen() {
   const [evalError,     setEvalError]     = useState(false);
 
   // ── Habit trigger ─────────────────────────────────────────────────────
-  const [activeTrigger, setActiveTrigger] = useState(
-    MOCK_SENSOR_DATA.sedentaryMins >= MOCK_SENSOR_DATA.sedentaryLimit
-      ? 'sedentary_alert'
-      : null,
-  );
+  const [activeTrigger, setActiveTrigger] = useState(null);
+
+  // Re-evaluate the sedentary trigger whenever sensor data changes
+  useEffect(() => {
+    if (sensorData.sedentaryMins >= sensorData.sedentaryLimit) {
+      setActiveTrigger('sedentary_alert');
+    }
+  }, [sensorData]);
   const [habitStreakDays, setHabitStreakDays] = useState(3);
 
   // ── Manual-mode state ─────────────────────────────────────────────────
@@ -130,7 +170,7 @@ export default function DashboardScreen() {
         user_id:      userId,
         current_week: currentWeek,
         sleep:        { duration_hours: sleepHours },
-        steps:        { steps: MOCK_SENSOR_DATA.steps, idle_minutes: MOCK_SENSOR_DATA.sedentaryMins },
+        steps:        { steps: sensorData.steps, idle_minutes: sensorData.sedentaryMins },
       });
       // Show first coaching message from the engine
       const msg = res.oars_reflection_he || res.coaching_message_he || null;
@@ -147,7 +187,7 @@ export default function DashboardScreen() {
     } finally {
       setEvalLoading(false);
     }
-  }, [userId, currentWeek, selectedSleepHours]);
+  }, [userId, currentWeek, selectedSleepHours, sensorData]);
 
   const handleMilestoneToggle = useCallback((id) => {
     setCheckedMilestones((prev) =>
@@ -162,8 +202,9 @@ export default function DashboardScreen() {
   }, [selectedSleepHours, _callOrchestrator]);
 
   const handleConnectPress = useCallback(() => {
-    setIsSensorActive(true);
-  }, []);
+    // Real reconnect attempt — requests Health Connect permissions and syncs
+    _syncHealthConnect();
+  }, [_syncHealthConnect]);
 
   const handleStrengthLogged = useCallback((res) => {
     if (!res) return;
@@ -185,7 +226,7 @@ export default function DashboardScreen() {
   }, []);
 
   const { sleepHours, sleepGoal, steps, stepsGoal, sedentaryMins, sedentaryLimit } =
-    MOCK_SENSOR_DATA;
+    sensorData;
 
   // ── Dynamic theme-aware styles (inline — change with theme) ──────────
   const themedSafe    = [styles.safe,    { backgroundColor: theme.background }];
@@ -352,11 +393,14 @@ export default function DashboardScreen() {
           </View>
         )}
 
+        {/* ════ EVENING — "Engine Shutdown" breathing module ════ */}
+        {theme.isDark && <BreathingModule theme={theme} />}
+
         {/* ════ HABIT STACKING CARD — Reanimated slide-in ════ */}
         <HabitStackingCard
           trigger={activeTrigger}
-          userId={MOCK_USER_ID}
-          currentWeek={CURRENT_WEEK}
+          userId={userId}
+          currentWeek={currentWeek}
           streakDays={habitStreakDays}
           onCompleted={handleHabitCompleted}
           onDismiss={handleHabitDismiss}

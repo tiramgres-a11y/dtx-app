@@ -31,7 +31,9 @@
 let HealthConnect = null;
 try {
   // eslint-disable-next-line import/no-extraneous-dependencies
-  HealthConnect = require('react-native-health-connect').default;
+  const _mod = require('react-native-health-connect');
+  // The package uses named exports (initialize, readRecords, …) — no default
+  HealthConnect = _mod.default || _mod;
 } catch (_) {
   // Running outside React Native (CI / unit tests) — caller injects mock via setSDK()
 }
@@ -65,6 +67,23 @@ const HC_RESTING_TAG = 'MEASUREMENT_LOCATION_WRIST_TEMPERATURE'; // SDK constant
 // ---------------------------------------------------------------------------
 // Permission layer
 // ---------------------------------------------------------------------------
+
+/**
+ * Initialise the Health Connect client.
+ * Must be called once before any permission/read call.
+ * Returns true when the SDK is available and initialised, false otherwise
+ * (Health Connect app missing, unsupported Android version, or non-native env).
+ * @returns {Promise<boolean>}
+ */
+async function initHealthConnect() {
+  if (!HealthConnect || typeof HealthConnect.initialize !== 'function') return false;
+  try {
+    const ok = await HealthConnect.initialize();
+    return ok === true;
+  } catch (_) {
+    return false;
+  }
+}
 
 /**
  * Request the minimum required Health Connect read permissions.
@@ -459,6 +478,7 @@ async function syncDailyMetrics(userId, currentWeek, date = new Date()) {
 // ---------------------------------------------------------------------------
 module.exports = {
   // Public API
+  initHealthConnect,
   requestPermissions,
   getPermissionStatus,
   syncDailyMetrics,

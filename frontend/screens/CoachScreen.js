@@ -73,11 +73,9 @@ export default function CoachScreen() {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   }, []);
 
-  const handleSend = useCallback(async () => {
-    const text = draft.trim();
+  // Core send routine — used by both the input bar and the quick-action chips
+  const sendText = useCallback(async (text) => {
     if (!text || isSending) return;
-
-    setDraft('');
     setIsSending(true);
     setMessages((prev) => [...prev, { id: nextId(), role: 'user', text }]);
     scrollToEnd();
@@ -106,7 +104,18 @@ export default function CoachScreen() {
       setIsSending(false);
       scrollToEnd();
     }
-  }, [draft, isSending, userId, currentWeek, baselineRHR, scrollToEnd]);
+  }, [isSending, userId, currentWeek, baselineRHR, scrollToEnd]);
+
+  const handleSend = useCallback(() => {
+    const text = draft.trim();
+    if (!text) return;
+    setDraft('');
+    sendText(text);
+  }, [draft, sendText]);
+
+  const handleChip = useCallback((promptKey) => {
+    sendText(t(promptKey));
+  }, [sendText]);
 
   const renderMessage = useCallback(({ item }) => {
     if (item.role === 'user') {
@@ -161,6 +170,26 @@ export default function CoachScreen() {
             <Text style={[styles.typingText, RTL.text]}>{t('COACH_TYPING')}</Text>
           </View>
         )}
+
+        {/* Quick-action chips — pre-planning protocol + common questions */}
+        <View style={[styles.chipsRow, RTL.row]}>
+          {[
+            ['COACH_CHIP_WEEKLY_PLAN', 'COACH_PROMPT_WEEKLY_PLAN'],
+            ['COACH_CHIP_MEAL_NOW',    'COACH_PROMPT_MEAL_NOW'],
+            ['COACH_CHIP_WORKOUT',     'COACH_PROMPT_WORKOUT'],
+          ].map(([labelKey, promptKey]) => (
+            <TouchableOpacity
+              key={labelKey}
+              style={[styles.chip, isSending && styles.chipDisabled]}
+              onPress={() => handleChip(promptKey)}
+              disabled={isSending}
+              accessibilityRole="button"
+              accessibilityLabel={t(labelKey)}
+            >
+              <Text style={styles.chipText}>{t(labelKey)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={[styles.inputRow, RTL.row]}>
           <TextInput
@@ -265,6 +294,29 @@ const styles = StyleSheet.create({
     fontSize:    FONT.xs,
     color:       COLORS.textSecondary,
     marginStart: SPACING.xs,
+  },
+
+  // ── Quick-action chips ──
+  chipsRow: {
+    flexWrap:          'wrap',
+    paddingHorizontal: SPACING.md,
+    paddingBottom:     SPACING.xs,
+  },
+  chip: {
+    backgroundColor:   COLORS.primaryLight,
+    borderColor:       COLORS.primary,
+    borderWidth:       1,
+    borderRadius:      RADIUS.pill,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   SPACING.xxs,
+    marginEnd:         SPACING.xs,
+    marginBottom:      SPACING.xxs,
+  },
+  chipDisabled: { opacity: 0.5 },
+  chipText: {
+    fontSize:   FONT.xs,
+    fontWeight: '600',
+    color:      COLORS.primary,
   },
 
   // ── Input bar ──
