@@ -52,19 +52,17 @@ import StrengthWorkoutButton   from '../components/StrengthWorkoutButton';
 import RHRStatusBadge          from '../components/RHRStatusBadge';
 import WeeklySummaryCard       from '../components/WeeklySummaryCard';
 
-// ── Mock data (replaced by Worker 1 payload in Sprint 2) ─────────────────
-const MOCK_SENSOR_DATA = {
-  sleepHours:     5.2,
+// ── Initial sensor values — zeros until a real Health Connect sync lands.
+// Never show fabricated numbers as if they came from the watch.
+const INITIAL_SENSOR_DATA = {
+  sleepHours:     0,
   sleepGoal:      7.0,
-  steps:          4820,
+  steps:          0,
   stepsGoal:      8000,
-  sedentaryMins:  75,
+  sedentaryMins:  0,
   sedentaryLimit: 60,
 };
 
-const CURRENT_WEEK   = 6;
-const MOCK_USER_ID   = 'user-demo-001';
-const MOCK_RESTING_HR = 68;
 
 const MOCK_WEEKLY_DAYS = [
   { date: '2026-06-01', sleep: { duration_hours: 6.5 }, steps: { steps: 7200, idle_minutes: 30 },
@@ -99,8 +97,13 @@ export default function DashboardScreen() {
   // ── Core graceful-degradation toggle ─────────────────────────────────
   const [isSensorActive, setIsSensorActive] = useState(true);
 
-  // ── Sensor data — real Health Connect values replace the mock on sync ──
-  const [sensorData, setSensorData] = useState(MOCK_SENSOR_DATA);
+  // ── Sensor data — real Health Connect values replace the zeros on sync ──
+  const [sensorData, setSensorData] = useState(INITIAL_SENSOR_DATA);
+
+  // True only after a sync that returned at least one real record.
+  // Connected-but-empty (e.g. Mi Fitness not syncing into Health Connect yet)
+  // shows an explanatory banner instead of fabricated numbers.
+  const [hasWatchData, setHasWatchData] = useState(true);
 
   // Attempt a real Health Connect sync on mount.
   // Graceful degradation: if the SDK / permissions / data are unavailable,
@@ -117,15 +120,19 @@ export default function DashboardScreen() {
       }
 
       const result = await healthConnect.syncDailyMetrics(userId, currentWeek);
+      const anyData =
+        result.sleep != null || result.steps != null || result.heart_rate != null;
+
       setSensorData((prev) => ({
         ...prev,
-        sleepHours:    result.sleep?.duration_hours ?? prev.sleepHours,
-        steps:         result.steps?.steps          ?? prev.steps,
-        sedentaryMins: result.steps?.idle_minutes   ?? prev.sedentaryMins,
+        sleepHours:    result.sleep?.duration_hours ?? 0,
+        steps:         result.steps?.steps          ?? 0,
+        sedentaryMins: result.steps?.idle_minutes   ?? 0,
       }));
       if (result.heart_rate?.resting_bpm) {
         setRestingHr(result.heart_rate.resting_bpm);
       }
+      setHasWatchData(anyData);
       setIsSensorActive(true);
     } catch (_err) {
       setIsSensorActive(false);
@@ -135,7 +142,7 @@ export default function DashboardScreen() {
   useEffect(() => { _syncHealthConnect(); }, [_syncHealthConnect]);
 
   // ── Phase 2 state ─────────────────────────────────────────────────────
-  const [restingHr,         setRestingHr]         = useState(MOCK_RESTING_HR);
+  const [restingHr,         setRestingHr]         = useState(null); // real value arrives from sync
   const [rhrTrend,          setRhrTrend]           = useState('stable');
   const [weeklySummaryDays, setWeeklySummaryDays]  = useState(MOCK_WEEKLY_DAYS);
 
@@ -289,6 +296,14 @@ export default function DashboardScreen() {
               {t('METRICS_SECTION_TITLE')}
             </Text>
 
+            {!hasWatchData && (
+              <View style={styles.warningBanner}>
+                <Text style={[styles.warningText, RTL.text]}>
+                  {t('METRICS_NO_WATCH_DATA')}
+                </Text>
+              </View>
+            )}
+
             <MetricBar
               label={t('METRICS_SLEEP_LABEL')}
               value={sleepHours}
@@ -325,7 +340,7 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            <RHRStatusBadge restingHr={restingHr} trend={rhrTrend} />
+            {restingHr != null && <RHRStatusBadge restingHr={restingHr} trend={rhrTrend} />}
           </View>
         )}
 

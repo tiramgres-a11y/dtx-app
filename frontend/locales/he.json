@@ -236,6 +236,8 @@
   "COACH_PROMPT_MEAL_NOW":    "מה כדאי לי לאכול עכשיו?",
   "COACH_PROMPT_WORKOUT":     "איזה אימון מתאים לי להיום?",
 
+  "METRICS_NO_WATCH_DATA": "מחובר ל-Health Connect אך אין עדיין נתונים מהשעון. פתח את אפליקציית Mi Fitness ← פרופיל ← הגדרות ← Health Connect והפעל סנכרון.",
+
   "BREATHING_TITLE":      "כיבוי מנועים 🌙",
   "BREATHING_SUBTITLE":   "דקה של נשימה מודרכת לקראת שינה — שאיפה 4 שניות, החזקה 4, נשיפה 6",
   "BREATHING_START_BTN":  "התחל נשימה מודרכת",
