@@ -52,6 +52,37 @@ def _init_db() -> None:
     # Import models so Base.metadata knows about them
     import backend.models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    _apply_lightweight_migrations()
+
+
+def _apply_lightweight_migrations() -> None:
+    """
+    Add columns introduced after a table was first created.
+
+    create_all() only creates MISSING tables — it never alters an existing one.
+    For the handful of columns we add over time, run idempotent
+    ADD COLUMN IF NOT EXISTS statements so existing deployments self-heal
+    without a full migration framework.
+    """
+    from sqlalchemy import text
+
+    # (table, column, SQL type) — all idempotent via IF NOT EXISTS
+    migrations = [
+        ("user_states", "program_start_date", "VARCHAR(10)"),
+    ]
+    is_sqlite = engine.dialect.name == "sqlite"
+    with engine.begin() as conn:
+        for table, column, coltype in migrations:
+            if is_sqlite:
+                # SQLite has no ADD COLUMN IF NOT EXISTS — check pragma first
+                cols = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+                if column in cols:
+                    continue
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
+            else:
+                conn.execute(text(
+                    f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {coltype}"
+                ))
 
 
 # ---------------------------------------------------------------------------
