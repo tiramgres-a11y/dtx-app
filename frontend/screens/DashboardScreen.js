@@ -123,7 +123,22 @@ export default function DashboardScreen() {
         if (!granted || granted.length === 0) { setIsSensorActive(false); return; }
       }
 
-      const result = await healthConnect.syncDailyMetrics(userId, currentWeek);
+      let result = await healthConnect.syncDailyMetrics(userId, currentWeek);
+
+      // Self-heal: Health Connect revokes permissions on every app update, but
+      // getPermissionStatus() can still report them as granted (stale registry).
+      // If the reads failed with a permission/security error, re-request through
+      // the official HC dialog and retry once.
+      const permissionError = (result.errors || []).some((e) =>
+        e.includes('SecurityException') || e.toLowerCase().includes('permission'),
+      );
+      if (permissionError) {
+        const granted = await healthConnect.requestPermissions();
+        if (granted && granted.length > 0) {
+          result = await healthConnect.syncDailyMetrics(userId, currentWeek);
+        }
+      }
+
       const anyData =
         result.sleep != null || result.steps != null || result.heart_rate != null;
 
