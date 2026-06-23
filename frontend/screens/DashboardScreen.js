@@ -39,7 +39,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 import { t }                   from '../utils/i18n';
 import { useUser }             from '../context/UserContext';
-import { evaluateMetrics }     from '../api/endpoints';
+import { evaluateMetrics, saveHealthMetrics } from '../api/endpoints';
 import { getTheme }            from '../utils/theme';
 import { RTL, COLORS, FONT, SPACING, RADIUS } from '../components/tokens';
 import SensorStatusBadge       from '../components/SensorStatusBadge';
@@ -139,6 +139,20 @@ export default function DashboardScreen() {
       setHasWatchData(anyData);
       setIsSensorActive(true);
       setLastSyncAt(new Date());
+
+      // Persist real watch data server-side so the AI mentor can read it.
+      // Best-effort: a network failure must not break the dashboard.
+      if (anyData) {
+        const metricDate = result.sync_meta?.date; // YYYY-MM-DD, local day
+        saveHealthMetrics({
+          user_id:      userId,
+          metric_date:  metricDate,
+          ...(result.sleep?.duration_hours != null ? { sleep_hours:  result.sleep.duration_hours } : {}),
+          ...(result.steps?.steps          != null ? { steps:        result.steps.steps          } : {}),
+          ...(result.steps?.idle_minutes   != null ? { idle_minutes: result.steps.idle_minutes   } : {}),
+          ...(result.heart_rate?.resting_bpm != null ? { resting_hr: result.heart_rate.resting_bpm } : {}),
+        }).catch(() => { /* offline — metrics will persist on the next sync */ });
+      }
     } catch (_err) {
       setIsSensorActive(false);
     } finally {

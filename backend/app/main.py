@@ -26,7 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from backend.database import Base, engine, get_db
-from backend.app.schemas import EvaluationRequest, EvaluationResponse
+from backend.app.schemas import EvaluationRequest, EvaluationResponse, HealthMetricsRequest
 from backend.app.rules import evaluate_phase1, PHASE_1_WEEKS
 from backend.app.rules_phase2 import evaluate_phase2, PHASE_2_WEEKS
 from backend.app.rules_phase3 import evaluate_phase3, PHASE_3_WEEKS
@@ -211,6 +211,18 @@ async def mentor_chat(
             if db_baseline is not None:
                 physiological_data["baseline_rhr"] = db_baseline
 
+        # Fill latest wearable metrics from DB for any field the client omitted,
+        # so the mentor sees the watch data even when the chat is opened directly
+        # (without visiting the dashboard first this session).
+        latest = db_service.get_latest_metrics(db, request.user_id)
+        if latest is not None:
+            if "sleep_hours" not in physiological_data and latest.sleep_hours is not None:
+                physiological_data["sleep_hours"] = latest.sleep_hours
+            if "steps" not in physiological_data and latest.steps is not None:
+                physiological_data["steps"] = latest.steps
+            if "resting_hr" not in physiological_data and latest.resting_hr is not None:
+                physiological_data["resting_hr"] = latest.resting_hr
+
         # Conversation memory — loaded BEFORE persisting the new user message
         history = [
             {"role": m.role, "content": m.content}
@@ -302,6 +314,59 @@ async def mentor_history(
             }
             for m in messages
         ],
+    }
+
+
+@app.post("/api/v1/health/metrics")
+async def save_health_metrics(
+    request: HealthMetricsRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Persist the latest wearable metrics from a dashboard Health Connect sync.
+    Upserts the (user_id, metric_date) row so the AI mentor can read it later.
+    """
+    metric_date = request.metric_date or datetime.now(timezone.utc).date().isoformat()
+    row = db_service.upsert_daily_metrics(
+        db=db,
+        user_id=request.user_id,
+        metric_date=metric_date,
+        synced_at_utc=datetime.now(timezone.utc).isoformat(),
+        sleep_hours=request.sleep_hours,
+        steps=request.steps,
+        idle_minutes=request.idle_minutes,
+        resting_hr=request.resting_hr,
+    )
+    # get_db() commits on successful return
+    return {
+        "user_id":      request.user_id,
+        "metric_date":  metric_date,
+        "stored":       True,
+        "sleep_hours":  row.sleep_hours,
+        "steps":        row.steps,
+        "idle_minutes": row.idle_minutes,
+        "resting_hr":   row.resting_hr,
+    }
+
+
+@app.get("/api/v1/health/metrics")
+async def get_health_metrics(
+    user_id: str,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Return the latest stored wearable metrics for a user (or nulls)."""
+    latest = db_service.get_latest_metrics(db, user_id)
+    if latest is None:
+        return {"user_id": user_id, "has_data": False}
+    return {
+        "user_id":       user_id,
+        "has_data":      True,
+        "metric_date":   latest.metric_date,
+        "sleep_hours":   latest.sleep_hours,
+        "steps":         latest.steps,
+        "idle_minutes":  latest.idle_minutes,
+        "resting_hr":    latest.resting_hr,
+        "synced_at_utc": latest.synced_at_utc,
     }
 
 

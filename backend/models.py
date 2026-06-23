@@ -19,7 +19,16 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -196,3 +205,43 @@ class MentorMessage(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<MentorMessage id={self.id} user_id={self.user_id!r} role={self.role!r}>"
+
+
+# ---------------------------------------------------------------------------
+# DailyMetrics — latest synced wearable data per user/day (upserted)
+# ---------------------------------------------------------------------------
+
+
+class DailyMetrics(Base):
+    """
+    One row per (user_id, metric_date).  Upserted on every Health Connect sync
+    from the dashboard so the watch data is persisted server-side and available
+    to the AI mentor's cognitive control room even when the user opens the chat
+    directly (without visiting the dashboard first).
+
+    Unlike sos_events, this table is NOT append-only — the latest sync for a
+    given day overwrites that day's row (newest reading wins).
+    """
+
+    __tablename__ = "daily_metrics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    metric_date: Mapped[str] = mapped_column(String(10), nullable=False)  # YYYY-MM-DD
+
+    sleep_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    steps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    idle_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resting_hr: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    synced_at_utc: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "metric_date", name="uq_daily_metrics_user_date"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return (
+            f"<DailyMetrics user_id={self.user_id!r} date={self.metric_date!r} "
+            f"sleep={self.sleep_hours} steps={self.steps} rhr={self.resting_hr}>"
+        )

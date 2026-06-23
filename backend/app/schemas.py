@@ -79,6 +79,22 @@ class PlanningSessionRecord(BaseModel):
 # Evaluation request — sent by Worker 2 (Frontend) after daily data collection
 # ---------------------------------------------------------------------------
 
+class HealthMetricsRequest(BaseModel):
+    """
+    Wearable metrics pushed from the dashboard after a Health Connect sync,
+    persisted server-side so the AI mentor can read them later.
+    All metric fields optional — a partial sync only updates what it has.
+    """
+    user_id: str = Field(..., description="Opaque user identifier")
+    metric_date: Optional[str] = Field(
+        default=None, description="YYYY-MM-DD; defaults to server UTC date when omitted"
+    )
+    sleep_hours: Optional[float] = Field(default=None, ge=0.0, le=24.0)
+    steps: Optional[int] = Field(default=None, ge=0)
+    idle_minutes: Optional[int] = Field(default=None, ge=0)
+    resting_hr: Optional[int] = Field(default=None, ge=20, le=250)
+
+
 class EvaluationRequest(BaseModel):
     user_id: str = Field(..., description="Opaque user identifier")
     current_week: int = Field(..., ge=1, le=13,

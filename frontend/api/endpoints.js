@@ -34,6 +34,7 @@ const ROUTES = {
   WEEKLY_SUMMARY:   '/api/v1/engine/weekly-summary', // Weekly aggregator
   MENTOR_CHAT:      '/api/v1/mentor/chat',           // AI Mentor Coach (Claude)
   MENTOR_HISTORY:   '/api/v1/mentor/history',        // Persisted conversation log
+  HEALTH_METRICS:   '/api/v1/health/metrics',        // Wearable metrics persistence
 };
 
 // ---------------------------------------------------------------------------
@@ -199,6 +200,28 @@ async function fetchMentorHistory(userId, limit = 30) {
   return res.data;
 }
 
+/**
+ * saveHealthMetrics — POST /api/v1/health/metrics
+ *
+ * Persists the latest Health Connect sync server-side so the AI mentor can
+ * read the user's sleep/steps/HR even when the chat is opened directly.
+ * All metric fields optional — a partial sync only updates what it has.
+ *
+ * @param {{
+ *   user_id:       string,
+ *   metric_date?:  string,
+ *   sleep_hours?:  number,
+ *   steps?:        number,
+ *   idle_minutes?: number,
+ *   resting_hr?:   number
+ * }} payload
+ * @returns {Promise<Object>}
+ */
+async function saveHealthMetrics(payload) {
+  const res = await getInstance().post(ROUTES.HEALTH_METRICS, payload);
+  return res.data;
+}
+
 module.exports = {
   healthCheck,
   evaluateMetrics,
@@ -208,5 +231,6 @@ module.exports = {
   resolveSOS,
   sendMentorMessage,
   fetchMentorHistory,
+  saveHealthMetrics,
   ROUTES,
 };

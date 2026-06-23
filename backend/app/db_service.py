@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models import (
+    DailyMetrics,
     MentorMessage,
     MorningQueueEntry,
     NotificationLog,
@@ -304,3 +305,66 @@ def get_recent_sos_events(
         .limit(limit)
     )
     return list(db.scalars(stmt).all())
+
+
+# ---------------------------------------------------------------------------
+# Daily metrics helpers (wearable data persistence)
+# ---------------------------------------------------------------------------
+
+
+def upsert_daily_metrics(
+    db: Session,
+    user_id: str,
+    metric_date: str,
+    synced_at_utc: str,
+    sleep_hours: float | None = None,
+    steps: int | None = None,
+    idle_minutes: int | None = None,
+    resting_hr: int | None = None,
+) -> DailyMetrics:
+    """
+    Insert or update the metrics row for (user_id, metric_date).
+    Newest sync wins; only non-None fields overwrite existing values, so a
+    partial sync (e.g. steps only) never wipes a previously stored sleep value.
+    """
+    stmt = (
+        select(DailyMetrics)
+        .where(DailyMetrics.user_id == user_id)
+        .where(DailyMetrics.metric_date == metric_date)
+    )
+    row: DailyMetrics | None = db.scalars(stmt).first()
+
+    if row is None:
+        row = DailyMetrics(
+            user_id=user_id,
+            metric_date=metric_date,
+            synced_at_utc=synced_at_utc,
+        )
+        db.add(row)
+
+    if sleep_hours is not None:
+        row.sleep_hours = sleep_hours
+    if steps is not None:
+        row.steps = steps
+    if idle_minutes is not None:
+        row.idle_minutes = idle_minutes
+    if resting_hr is not None:
+        row.resting_hr = resting_hr
+    row.synced_at_utc = synced_at_utc
+
+    db.flush()
+    return row
+
+
+def get_latest_metrics(db: Session, user_id: str) -> DailyMetrics | None:
+    """
+    Return the most recently dated metrics row for a user, or None.
+    Ordered by metric_date (string YYYY-MM-DD sorts chronologically), then id.
+    """
+    stmt = (
+        select(DailyMetrics)
+        .where(DailyMetrics.user_id == user_id)
+        .order_by(DailyMetrics.metric_date.desc(), DailyMetrics.id.desc())
+        .limit(1)
+    )
+    return db.scalars(stmt).first()
