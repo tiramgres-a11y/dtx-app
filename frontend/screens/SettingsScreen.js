@@ -18,10 +18,8 @@ import {
 import { t }          from '../utils/i18n';
 import { RTL, COLORS, FONT, SPACING, RADIUS } from '../components/tokens';
 import { useUser }    from '../context/UserContext';
-import { healthCheck } from '../api/endpoints';
+import { healthCheck, setProgramStart } from '../api/endpoints';
 import { getInstance } from '../api/client';
-
-const WEEK_OPTIONS = [1,2,3,4,5,6,7,8,9,10,11,12,13];
 
 function SectionHeader({ label }) {
   return <Text style={[styles.sectionHeader, RTL.text]}>{label}</Text>;
@@ -29,14 +27,36 @@ function SectionHeader({ label }) {
 
 export default function SettingsScreen() {
   const {
-    userId,      setUserId,
-    currentWeek, setCurrentWeek,
+    userId,
+    currentWeek,
     baselineRHR, setBaselineRHR,
+    programStartDate,
+    refreshUserState,
   } = useUser();
 
   // RHR save state
   const [rhrInput,   setRhrInput]   = useState(baselineRHR ? String(baselineRHR) : '');
   const [rhrStatus,  setRhrStatus]  = useState(null); // 'saving' | 'saved' | 'error'
+
+  // Program start date state
+  const [startInput,  setStartInput]  = useState(programStartDate || '');
+  const [startStatus, setStartStatus] = useState(null); // 'saving' | 'saved' | 'error'
+
+  const handleSaveStart = useCallback(async () => {
+    // Validate YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startInput) || isNaN(Date.parse(startInput))) {
+      setStartStatus('error');
+      return;
+    }
+    setStartStatus('saving');
+    try {
+      await setProgramStart(userId, startInput);
+      await refreshUserState();   // pull the freshly computed week
+      setStartStatus('saved');
+    } catch (_err) {
+      setStartStatus('error');
+    }
+  }, [startInput, userId, refreshUserState]);
 
   // Server check state
   const [serverStatus, setServerStatus] = useState(null); // 'checking' | 'ok' | 'error'
@@ -77,36 +97,49 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
 
-        {/* ── User profile ────────────────────────────────────────── */}
-        <SectionHeader label={t('SETTINGS_USER_SECTION')} />
+        {/* ── Program ─────────────────────────────────────────────── */}
+        <SectionHeader label={t('SETTINGS_PROGRAM_SECTION')} />
         <View style={styles.card}>
-          <Text style={[styles.fieldLabel, RTL.text]}>{t('SETTINGS_USER_ID_LABEL')}</Text>
-          <TextInput
-            style={[styles.textInput, RTL.text]}
-            value={userId}
-            onChangeText={setUserId}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="done"
-          />
+          <Text style={[styles.fieldLabel, RTL.text]}>{t('SETTINGS_START_DATE_LABEL')}</Text>
+          <View style={[styles.inputRow, RTL.row]}>
+            <TextInput
+              style={[styles.textInput, { flex: 1 }, RTL.text]}
+              value={startInput}
+              onChangeText={(v) => { setStartInput(v); setStartStatus(null); }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+              placeholder="2026-06-17"
+              placeholderTextColor={COLORS.textSecondary}
+              maxLength={10}
+              returnKeyType="done"
+            />
+            <TouchableOpacity
+              style={[styles.saveBtn, startStatus === 'saving' && styles.saveBtnDisabled]}
+              onPress={handleSaveStart}
+              disabled={startStatus === 'saving'}
+              accessibilityRole="button"
+            >
+              {startStatus === 'saving'
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={styles.saveBtnText}>{t('SETTINGS_START_SAVE_BTN')}</Text>
+              }
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.hint, RTL.text]}>{t('SETTINGS_START_DATE_HINT')}</Text>
+          {startStatus === 'saved' && (
+            <Text style={[styles.statusOk, RTL.text]}>{t('SETTINGS_START_SAVED')}</Text>
+          )}
+          {startStatus === 'error' && (
+            <Text style={[styles.statusErr, RTL.text]}>{t('SETTINGS_START_ERROR')}</Text>
+          )}
 
-          <Text style={[styles.fieldLabel, { marginTop: SPACING.md }, RTL.text]}>
-            {t('SETTINGS_WEEK_LABEL')}
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.weekRow}>
-            {WEEK_OPTIONS.map((w) => (
-              <TouchableOpacity
-                key={w}
-                style={[styles.weekChip, currentWeek === w && styles.weekChipActive]}
-                onPress={() => setCurrentWeek(w)}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.weekChipText, currentWeek === w && styles.weekChipTextActive]}>
-                  {w}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Computed current week — read-only */}
+          <View style={styles.weekBadge}>
+            <Text style={[styles.weekBadgeText, RTL.text]}>
+              {t('SETTINGS_CURRENT_WEEK')}: {currentWeek} / 13
+            </Text>
+          </View>
         </View>
 
         {/* ── Baseline RHR ────────────────────────────────────────── */}
@@ -250,6 +283,25 @@ const styles = StyleSheet.create({
   weekChipActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   weekChipText:       { fontSize: FONT.sm, color: COLORS.textSecondary, fontWeight: '600' },
   weekChipTextActive: { color: '#fff' },
+
+  hint: {
+    fontSize:  FONT.xs,
+    color:     COLORS.textSecondary,
+    marginTop: SPACING.xxs,
+  },
+  weekBadge: {
+    marginTop:         SPACING.md,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      RADIUS.md,
+    paddingVertical:   SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    alignSelf:         'flex-start',
+  },
+  weekBadgeText: {
+    fontSize:   FONT.md,
+    fontWeight: '700',
+    color:      COLORS.primary,
+  },
 
   saveBtn: {
     backgroundColor: COLORS.primary,

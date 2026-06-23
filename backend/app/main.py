@@ -370,6 +370,51 @@ async def get_health_metrics(
     }
 
 
+@app.get("/api/v1/user/state")
+async def get_user_state(
+    user_id: str,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Return the user's program state, with the current week computed live from
+    the stored start date so the app always reflects the real day in the journey.
+    """
+    user = db_service.get_user_state(db, user_id)
+    start_date = user.program_start_date if user else None
+    return {
+        "user_id":            user_id,
+        "program_start_date": start_date,
+        "current_week":       db_service.compute_current_week(start_date),
+        "baseline_rhr":       user.baseline_rhr if user else None,
+    }
+
+
+@app.post("/api/v1/user/program-start")
+async def set_program_start(
+    user_id: str,
+    start_date: str,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Set the program start date (YYYY-MM-DD). The current week is recomputed
+    from it automatically and advances on its own as the days pass.
+    """
+    try:
+        from datetime import date as _date
+        _date.fromisoformat(start_date)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="start_date must be YYYY-MM-DD")
+
+    user = db_service.set_program_start_date(db, user_id, start_date)
+    # get_db() commits on return
+    return {
+        "user_id":            user_id,
+        "program_start_date": start_date,
+        "current_week":       user.current_week,
+        "stored":             True,
+    }
+
+
 @app.post("/api/v1/user/baseline-rhr")
 async def set_baseline_rhr(
     user_id: str,

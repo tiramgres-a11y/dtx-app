@@ -35,6 +35,8 @@ const ROUTES = {
   MENTOR_CHAT:      '/api/v1/mentor/chat',           // AI Mentor Coach (Claude)
   MENTOR_HISTORY:   '/api/v1/mentor/history',        // Persisted conversation log
   HEALTH_METRICS:   '/api/v1/health/metrics',        // Wearable metrics persistence
+  USER_STATE:       '/api/v1/user/state',            // Program state (computed week)
+  PROGRAM_START:    '/api/v1/user/program-start',    // Set program start date
 };
 
 // ---------------------------------------------------------------------------
@@ -222,6 +224,32 @@ async function saveHealthMetrics(payload) {
   return res.data;
 }
 
+/**
+ * fetchUserState — GET /api/v1/user/state
+ * Returns program state with the current week computed live from the start date.
+ * @param {string} userId
+ * @returns {Promise<{ user_id: string, program_start_date: string|null,
+ *   current_week: number, baseline_rhr: number|null }>}
+ */
+async function fetchUserState(userId) {
+  const res = await getInstance().get(ROUTES.USER_STATE, { params: { user_id: userId } });
+  return res.data;
+}
+
+/**
+ * setProgramStart — POST /api/v1/user/program-start
+ * Stores the program start date (YYYY-MM-DD); the week advances on its own.
+ * @param {string} userId
+ * @param {string} startDate  YYYY-MM-DD
+ * @returns {Promise<{ current_week: number, program_start_date: string, stored: boolean }>}
+ */
+async function setProgramStart(userId, startDate) {
+  const res = await getInstance().post(ROUTES.PROGRAM_START, null, {
+    params: { user_id: userId, start_date: startDate },
+  });
+  return res.data;
+}
+
 module.exports = {
   healthCheck,
   evaluateMetrics,
@@ -232,5 +260,7 @@ module.exports = {
   sendMentorMessage,
   fetchMentorHistory,
   saveHealthMetrics,
+  fetchUserState,
+  setProgramStart,
   ROUTES,
 };

@@ -64,6 +64,10 @@ class UserState(Base):
     current_week: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_prepped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    # Program start date (YYYY-MM-DD). When set, the current week is computed
+    # automatically from it instead of being entered manually.
+    program_start_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
+
     # Baseline resting heart rate (set via /api/v1/user/baseline-rhr)
     baseline_rhr: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

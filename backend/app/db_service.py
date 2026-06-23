@@ -13,7 +13,7 @@ so that the refactor is a drop-in replacement at the call site.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -71,6 +71,35 @@ def upsert_baseline_rhr(db: Session, user_id: str, baseline_rhr: int) -> UserSta
     """
     user = get_or_create_user(db, user_id)
     user.baseline_rhr = baseline_rhr
+    db.flush()
+    return user
+
+
+def compute_current_week(program_start_date: str | None) -> int:
+    """
+    Derive the current program week (1–13) from the start date (YYYY-MM-DD).
+    Day 0–6 → week 1, day 7–13 → week 2, … capped at week 13.
+    Returns 1 when no start date is set or the value is malformed.
+    """
+    if not program_start_date:
+        return 1
+    try:
+        start = date.fromisoformat(program_start_date)
+    except (ValueError, TypeError):
+        return 1
+    delta_days = (date.today() - start).days
+    week = delta_days // 7 + 1
+    return max(1, min(13, week))
+
+
+def set_program_start_date(db: Session, user_id: str, start_date: str) -> UserState:
+    """
+    Store the program start date and snapshot the computed current week.
+    Creates the UserState row if it doesn't exist.
+    """
+    user = get_or_create_user(db, user_id)
+    user.program_start_date = start_date
+    user.current_week = compute_current_week(start_date)
     db.flush()
     return user
 
