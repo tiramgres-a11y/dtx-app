@@ -401,6 +401,26 @@ def upsert_daily_metrics(
     return row
 
 
+def get_recent_daily_metrics(
+    db: Session,
+    user_id: str,
+    limit: int = 7,
+) -> list[DailyMetrics]:
+    """
+    Return the most recent `limit` daily-metrics rows for a user, in
+    chronological order (oldest first) — ready for weekly aggregation.
+    """
+    stmt = (
+        select(DailyMetrics)
+        .where(DailyMetrics.user_id == user_id)
+        .order_by(DailyMetrics.metric_date.desc(), DailyMetrics.id.desc())
+        .limit(limit)
+    )
+    rows = list(db.scalars(stmt).all())
+    rows.reverse()
+    return rows
+
+
 def get_latest_metrics(db: Session, user_id: str) -> DailyMetrics | None:
     """
     Return the most recently dated metrics row for a user, or None.

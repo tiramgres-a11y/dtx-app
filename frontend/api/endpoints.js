@@ -38,6 +38,7 @@ const ROUTES = {
   USER_STATE:       '/api/v1/user/state',            // Program state (computed week)
   PROGRAM_START:    '/api/v1/user/program-start',    // Set program start date
   CONTENT_TODAY:    '/api/v1/content/today',         // Daily curriculum lesson
+  HEALTH_HISTORY:   '/api/v1/health/history',        // Last N days of stored metrics
 };
 
 // ---------------------------------------------------------------------------
@@ -267,6 +268,21 @@ async function fetchTodayContent(userId, day) {
   return res.data;
 }
 
+/**
+ * fetchHealthHistory — GET /api/v1/health/history
+ * Returns the last N days of stored metrics as DailyRecord-shaped objects,
+ * ready to feed the weekly summary card.
+ * @param {string} userId
+ * @param {number} [days=7]
+ * @returns {Promise<{ user_id: string, days: Array<Object> }>}
+ */
+async function fetchHealthHistory(userId, days = 7) {
+  const res = await getInstance().get(ROUTES.HEALTH_HISTORY, {
+    params: { user_id: userId, days },
+  });
+  return res.data;
+}
+
 module.exports = {
   healthCheck,
   evaluateMetrics,
@@ -280,5 +296,6 @@ module.exports = {
   fetchUserState,
   setProgramStart,
   fetchTodayContent,
+  fetchHealthHistory,
   ROUTES,
 };

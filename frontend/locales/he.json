@@ -230,6 +230,13 @@
   "LESSON_MISSION_TITLE": "🎯 המשימה של היום",
   "LESSON_WATCH_VIDEO":  "צפה בסרטון",
   "LESSON_PHOTO_CREDIT": "צילום:",
+
+  "NOTIF_LESSON_TITLE":  "📚 השיעור היומי שלך מחכה",
+  "NOTIF_LESSON_BODY":   "בוא נלמד את ההרגל של היום ונתחיל את היום נכון.",
+  "NOTIF_EVENING_TITLE": "🌙 זמן לכבות מנועים",
+  "NOTIF_EVENING_BODY":  "בוא נתחיל להירגע לקראת שינה טובה — נשימה קצרה תעזור.",
+  "NOTIF_PREP_TITLE":    "🛒 יום שישי — זמן לתכנן את השבוע",
+  "NOTIF_PREP_BODY":     "30 דקות תכנון והכנת מצרכים ימנעו בחירות אימפולסיביות כל השבוע.",
   "PHASE_1_LABEL":       "שלב 1 — איפוס",
   "PHASE_2_LABEL":       "שלב 2 — העמסה",
   "PHASE_3_LABEL":       "שלב 3 — תחזוקה",

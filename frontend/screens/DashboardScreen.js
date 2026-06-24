@@ -39,7 +39,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 import { t }                   from '../utils/i18n';
 import { useUser }             from '../context/UserContext';
-import { evaluateMetrics, saveHealthMetrics } from '../api/endpoints';
+import { evaluateMetrics, saveHealthMetrics, fetchHealthHistory } from '../api/endpoints';
 import { getTheme }            from '../utils/theme';
 import { RTL, COLORS, FONT, SPACING, RADIUS } from '../components/tokens';
 import SensorStatusBadge       from '../components/SensorStatusBadge';
@@ -65,19 +65,6 @@ const INITIAL_SENSOR_DATA = {
 };
 
 
-const MOCK_WEEKLY_DAYS = [
-  { date: '2026-06-01', sleep: { duration_hours: 6.5 }, steps: { steps: 7200, idle_minutes: 30 },
-    exercise: { type: 'STRENGTH', duration_minutes: 45, completed: true }, heart_rate: { resting_hr: 65 } },
-  { date: '2026-06-02', sleep: { duration_hours: 7.0 }, steps: { steps: 8100, idle_minutes: 25 } },
-  { date: '2026-06-03', sleep: { duration_hours: 5.5 }, steps: { steps: 6000, idle_minutes: 50 },
-    heart_rate: { resting_hr: 68 } },
-  { date: '2026-06-04' },
-  { date: '2026-06-05', sleep: { duration_hours: 7.5 }, steps: { steps: 9000, idle_minutes: 20 },
-    exercise: { type: 'STRENGTH', duration_minutes: 50, completed: true }, heart_rate: { resting_hr: 63 } },
-  { date: '2026-06-06', sleep: { duration_hours: 6.0 }, steps: { steps: 5500, idle_minutes: 40 },
-    heart_rate: { resting_hr: 64 } },
-  { date: '2026-06-07', sleep: { duration_hours: 6.5 }, steps: { steps: 7800, idle_minutes: 35 } },
-];
 
 // ── Greeting helper ───────────────────────────────────────────────────────
 function getGreetingKey() {
@@ -189,7 +176,19 @@ export default function DashboardScreen() {
   // ── Phase 2 state ─────────────────────────────────────────────────────
   const [restingHr,         setRestingHr]         = useState(null); // real value arrives from sync
   const [rhrTrend,          setRhrTrend]           = useState('stable');
-  const [weeklySummaryDays, setWeeklySummaryDays]  = useState(MOCK_WEEKLY_DAYS);
+  const [weeklySummaryDays, setWeeklySummaryDays]  = useState([]);
+
+  // Pull the last 7 days of real stored metrics for the weekly summary card.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchHealthHistory(userId, 7);
+        if (!cancelled && res?.days) setWeeklySummaryDays(res.days);
+      } catch (_err) { /* offline — card simply won't render */ }
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
 
   // ── Coaching response from Orchestrator ──────────────────────────────
   const [coachingMsg,   setCoachingMsg]   = useState(null);
@@ -486,8 +485,8 @@ export default function DashboardScreen() {
           onDismiss={handleHabitDismiss}
         />
 
-        {/* ════ PHASE 2 — Weekly Summary Card (Weeks 5-9) ════ */}
-        {currentWeek >= 5 && currentWeek <= 9 && (
+        {/* ════ Weekly Summary Card — real data, any week with history ════ */}
+        {weeklySummaryDays.length > 0 && (
           <WeeklySummaryCard
             userId={userId}
             currentWeek={currentWeek}

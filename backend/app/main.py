@@ -393,6 +393,28 @@ async def save_health_metrics(
     }
 
 
+@app.get("/api/v1/health/history")
+async def get_health_history(
+    user_id: str,
+    days: int = 7,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Return the last `days` of stored wearable metrics (oldest first),
+    shaped as DailyRecord-compatible objects for the weekly summary engine.
+    """
+    rows = db_service.get_recent_daily_metrics(db, user_id, limit=max(1, min(31, days)))
+    records = []
+    for r in rows:
+        records.append({
+            "date":       r.metric_date,
+            "sleep":      {"duration_hours": r.sleep_hours} if r.sleep_hours is not None else None,
+            "steps":      {"steps": r.steps, "idle_minutes": r.idle_minutes or 0} if r.steps is not None else None,
+            "heart_rate": {"resting_hr": r.resting_hr} if r.resting_hr is not None else None,
+        })
+    return {"user_id": user_id, "days": records}
+
+
 @app.get("/api/v1/health/metrics")
 async def get_health_metrics(
     user_id: str,

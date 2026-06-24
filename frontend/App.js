@@ -10,7 +10,7 @@
  *   4. UserContext — shared userId, currentWeek, baselineRHR
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -27,6 +27,9 @@ import { UserProvider } from './context/UserContext';
 // Navigation
 import AppNavigator from './navigation/AppNavigator';
 
+// Local scheduled reminders
+import { configureReminders } from './services/notificationService';
+
 export default function App() {
   // Wire network fallback: 5xx / timeout → components handle gracefully
   const handleNetworkFallback = useCallback(({ errorKey }) => {
@@ -34,6 +37,9 @@ export default function App() {
   }, []);
 
   setFallbackHandler(handleNetworkFallback);
+
+  // Schedule local reminders once on launch (idempotent; asks permission once)
+  useEffect(() => { configureReminders(); }, []);
 
   return (
     <SafeAreaProvider>
