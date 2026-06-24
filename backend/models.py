@@ -249,3 +249,27 @@ class DailyMetrics(Base):
             f"<DailyMetrics user_id={self.user_id!r} date={self.metric_date!r} "
             f"sleep={self.sleep_hours} steps={self.steps} rhr={self.resting_hr}>"
         )
+
+
+# ---------------------------------------------------------------------------
+# ImageCache — resolved Unsplash image per content query (fetched once)
+# ---------------------------------------------------------------------------
+
+
+class ImageCache(Base):
+    """
+    Maps a content imageQuery to a resolved image URL + photographer credit.
+    Populated lazily the first time a day's content is served, so each query
+    hits the Unsplash API only once (well within the free-tier rate limit).
+    """
+
+    __tablename__ = "image_cache"
+
+    query: Mapped[str] = mapped_column(String(256), primary_key=True)
+    image_url: Mapped[str] = mapped_column(Text, nullable=False)
+    photographer: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    photographer_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fetched_at_utc: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<ImageCache query={self.query!r}>"

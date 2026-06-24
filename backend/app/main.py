@@ -401,6 +401,30 @@ async def get_health_metrics(
     }
 
 
+@app.get("/api/v1/content/today")
+async def content_today(
+    user_id: str,
+    day: int | None = None,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Return today's curriculum lesson (text + mission + resolved image),
+    based on the user's program day computed from their start date.
+    Pass ?day=N to preview a specific program day (1-91).
+    """
+    from backend.app import content_service
+
+    if day is None:
+        user = db_service.get_user_state(db, user_id)
+        start_date = user.program_start_date if user else None
+        day = db_service.compute_program_day(start_date)
+
+    payload = content_service.get_day_content(db, day)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="No content for this day")
+    return payload
+
+
 @app.get("/api/v1/user/state")
 async def get_user_state(
     user_id: str,

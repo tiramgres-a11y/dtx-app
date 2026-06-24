@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from backend.models import (
     DailyMetrics,
+    ImageCache,
     MentorMessage,
     MorningQueueEntry,
     NotificationLog,
@@ -90,6 +91,21 @@ def compute_current_week(program_start_date: str | None) -> int:
     delta_days = (date.today() - start).days
     week = delta_days // 7 + 1
     return max(1, min(13, week))
+
+
+def compute_program_day(program_start_date: str | None) -> int:
+    """
+    Derive the absolute program day (1–91) from the start date.
+    Start day itself is day 1. Returns 1 when unset/malformed; capped at 91.
+    """
+    if not program_start_date:
+        return 1
+    try:
+        start = date.fromisoformat(program_start_date)
+    except (ValueError, TypeError):
+        return 1
+    delta_days = (date.today() - start).days
+    return max(1, min(91, delta_days + 1))
 
 
 def set_program_start_date(db: Session, user_id: str, start_date: str) -> UserState:
@@ -397,3 +413,34 @@ def get_latest_metrics(db: Session, user_id: str) -> DailyMetrics | None:
         .limit(1)
     )
     return db.scalars(stmt).first()
+
+
+# ---------------------------------------------------------------------------
+# Image cache helpers
+# ---------------------------------------------------------------------------
+
+
+def get_cached_image(db: Session, query: str) -> ImageCache | None:
+    """Return the cached image for a query, or None."""
+    return db.get(ImageCache, query)
+
+
+def set_cached_image(
+    db: Session,
+    query: str,
+    image_url: str,
+    photographer: str | None,
+    photographer_url: str | None,
+    fetched_at_utc: str,
+) -> ImageCache:
+    """Insert or update the cached image for a query."""
+    row = db.get(ImageCache, query)
+    if row is None:
+        row = ImageCache(query=query)
+        db.add(row)
+    row.image_url        = image_url
+    row.photographer     = photographer
+    row.photographer_url = photographer_url
+    row.fetched_at_utc   = fetched_at_utc
+    db.flush()
+    return row
