@@ -37,6 +37,7 @@ const ROUTES = {
   HEALTH_METRICS:   '/api/v1/health/metrics',        // Wearable metrics persistence
   USER_STATE:       '/api/v1/user/state',            // Program state (computed week)
   PROGRAM_START:    '/api/v1/user/program-start',    // Set program start date
+  CONTENT_TODAY:    '/api/v1/content/today',         // Daily curriculum lesson
 };
 
 // ---------------------------------------------------------------------------
@@ -250,6 +251,22 @@ async function setProgramStart(userId, startDate) {
   return res.data;
 }
 
+/**
+ * fetchTodayContent — GET /api/v1/content/today
+ * Returns the day's curriculum lesson (text + mission + resolved image),
+ * based on the user's program day. Pass a day to preview a specific one.
+ * 30s timeout: the first image resolution may hit Unsplash + Render cold start.
+ * @param {string} userId
+ * @param {number} [day]  optional 1-91 to preview a specific day
+ * @returns {Promise<Object>}
+ */
+async function fetchTodayContent(userId, day) {
+  const params = { user_id: userId };
+  if (day != null) params.day = day;
+  const res = await getInstance().get(ROUTES.CONTENT_TODAY, { params, timeout: 30000 });
+  return res.data;
+}
+
 module.exports = {
   healthCheck,
   evaluateMetrics,
@@ -262,5 +279,6 @@ module.exports = {
   saveHealthMetrics,
   fetchUserState,
   setProgramStart,
+  fetchTodayContent,
   ROUTES,
 };

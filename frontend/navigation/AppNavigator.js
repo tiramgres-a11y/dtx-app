@@ -8,6 +8,7 @@ import React from 'react';
 import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
+import DailyLessonScreen from '../screens/DailyLessonScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import CoachScreen     from '../screens/CoachScreen';
 import SOSScreen       from '../screens/SOSScreen';
@@ -48,6 +49,14 @@ export default function AppNavigator() {
         },
       }}
     >
+      <Tab.Screen
+        name="Lesson"
+        component={DailyLessonScreen}
+        options={{
+          tabBarLabel: t('TAB_LESSON'),
+          tabBarIcon:  ({ focused }) => <TabIcon emoji="📚" focused={focused} />,
+        }}
+      />
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}

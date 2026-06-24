@@ -231,6 +231,18 @@ async def mentor_chat(
         if v is not None
     }
 
+    # Today's curriculum lesson — grounds the mentor in the day's theme.
+    lesson: dict | None = None
+    try:
+        from backend.app import content_service
+        user_for_day = db_service.get_user_state(db, request.user_id)
+        start_date = user_for_day.program_start_date if user_for_day else None
+        program_day = db_service.compute_program_day(start_date)
+        lesson = content_service.get_day_entry(program_day)
+    except Exception as exc:
+        logger.warning("mentor_chat: lesson load failed — continuing without it. %s", exc)
+        lesson = None
+
     # Context loading + persistence are best-effort: conversation memory is an
     # enhancement — a DB hiccup must never block the AI response itself.
     history: list = []
@@ -289,6 +301,7 @@ async def mentor_chat(
             free_text=request.free_text,
             history=history,
             sos_context=sos_context,
+            lesson=lesson,
         )
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

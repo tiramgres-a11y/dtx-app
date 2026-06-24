@@ -216,11 +216,23 @@
   "ACTION_OPEN_LABEL":                   "פתח משאב חיצוני",
   "ACTION_OPEN_ACCESSIBILITY_HINT":      "פותח דפדפן בתוך האפליקציה",
 
+  "TAB_LESSON":      "השיעור",
   "TAB_DASHBOARD":   "דשבורד",
   "TAB_SOS":         "SOS",
   "TAB_COACH":       "המאמן שלי",
   "TAB_HISTORY":     "היסטוריה",
   "TAB_SETTINGS":    "הגדרות",
+
+  "LESSON_LOADING":      "טוען את השיעור של היום…",
+  "LESSON_ERROR":        "לא הצלחתי לטעון את השיעור. בדוק את החיבור ונסה שוב.",
+  "LESSON_RETRY_BTN":    "נסה שוב",
+  "LESSON_DAY_LABEL":    "יום",
+  "LESSON_MISSION_TITLE": "🎯 המשימה של היום",
+  "LESSON_WATCH_VIDEO":  "צפה בסרטון",
+  "LESSON_PHOTO_CREDIT": "צילום:",
+  "PHASE_1_LABEL":       "שלב 1 — איפוס",
+  "PHASE_2_LABEL":       "שלב 2 — העמסה",
+  "PHASE_3_LABEL":       "שלב 3 — תחזוקה",
 
   "COACH_SCREEN_TITLE":      "המאמן האישי שלך",
   "COACH_EMPTY_STATE":       "כאן אפשר לשאול אותי כל דבר — על תזונה, אימונים, שינה, או פשוט לשתף איך עבר היום. אני כאן בשבילך.",

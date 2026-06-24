@@ -176,6 +176,7 @@ def generate_mentor_response(
     week: int,
     history: Optional[list[dict]] = None,
     sos_context: Optional[list[dict]] = None,
+    lesson: Optional[dict] = None,
 ) -> dict:
     """
     Generate a personalised, OARS-compliant Hebrew mentor message.
@@ -228,6 +229,22 @@ def generate_mentor_response(
     baseline = user_state.get("baseline_rhr")
     if baseline is not None:
         lines.append(f"דופק בסיס אישי: {baseline} פעימות/דקה")
+
+    # Today's curriculum lesson — the source of truth the mentor builds on
+    if lesson:
+        lesson_bits = []
+        if lesson.get("theme"):
+            lesson_bits.append(f"נושא היום: {lesson['theme'].replace('_', ' ')}")
+        if lesson.get("keyTakeaway"):
+            lesson_bits.append(f"המסר המרכזי: {lesson['keyTakeaway']}")
+        mission = (lesson.get("dailyMission") or {}).get("description")
+        if mission:
+            lesson_bits.append(f"המשימה היומית: {mission}")
+        if lesson_bits:
+            lines.append(
+                "\nשיעור היום בתוכנית (השתמש בו כמקור-אמת — חבר את התשובה שלך לנושא הזה):\n"
+                + "\n".join(lesson_bits)
+            )
 
     # Recent SOS events — context for the cognitive control room
     if sos_context:
@@ -343,6 +360,7 @@ def get_mentor_response(
     free_text: Optional[str] = None,
     history: Optional[list[dict]] = None,
     sos_context: Optional[list[dict]] = None,
+    lesson: Optional[dict] = None,
 ) -> MentorResponse:
     """
     FastAPI-friendly wrapper around generate_mentor_response().
@@ -358,5 +376,6 @@ def get_mentor_response(
         week=dtx_week,
         history=history,
         sos_context=sos_context,
+        lesson=lesson,
     )
     return MentorResponse(**result)
