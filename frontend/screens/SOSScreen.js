@@ -12,11 +12,11 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
   Platform,
   UIManager,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -91,7 +91,7 @@ export default function SOSScreen() {
   // ── IDLE ──────────────────────────────────────────────────────────────
   if (phase === STATE.IDLE) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <Text style={[styles.headerTitle, RTL.text]}>{t('SOS_SCREEN_TITLE')}</Text>
         </View>
@@ -114,7 +114,7 @@ export default function SOSScreen() {
   // ── LOADING ───────────────────────────────────────────────────────────
   if (phase === STATE.LOADING) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={COLORS.danger} />
           <Text style={[styles.loadingText, RTL.text]}>{t('SOS_TRIGGERING')}</Text>
@@ -126,7 +126,7 @@ export default function SOSScreen() {
   // ── ERROR ─────────────────────────────────────────────────────────────
   if (phase === STATE.ERROR) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.centerContainer}>
           <Text style={[styles.errorText, RTL.text]}>{t('SOS_ERROR')}</Text>
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleReset}>
@@ -141,7 +141,7 @@ export default function SOSScreen() {
   if (phase === STATE.ACTIVE || phase === STATE.RESOLVING) {
     const STEP_COLORS = ['#EF4444', '#F59E0B', '#10B981'];
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <Text style={[styles.headerTitle, RTL.text]}>{t('SOS_PROTOCOL_HEADER')}</Text>
         </View>
@@ -188,7 +188,7 @@ export default function SOSScreen() {
       : (resolveData?.resolve_message_he || t('RESOLVE_LAPSE_ACK_HE'));
 
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <Text style={[styles.headerTitle, RTL.text]}>{t('SOS_DONE_TITLE')}</Text>
         </View>

@@ -25,12 +25,12 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   UIManager,
   AppState,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Enable LayoutAnimation on Android (used by child components)
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -289,7 +289,7 @@ export default function DashboardScreen() {
   const themedWeekLabel = [styles.weekLabel, { color: theme.weekLabel }, RTL.text];
 
   return (
-    <SafeAreaView style={themedSafe}>
+    <SafeAreaView style={themedSafe} edges={['top']}>
       <StatusBar
         barStyle={theme.statusBarStyle === 'light' ? 'light-content' : 'dark-content'}
         backgroundColor={theme.headerBg}

@@ -11,9 +11,9 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { t }               from '../utils/i18n';
 import { RTL, COLORS, FONT, SPACING, RADIUS } from '../components/tokens';
@@ -72,7 +72,7 @@ export default function HistoryScreen() {
   }, [userId, currentWeek]);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, RTL.text]}>{t('HISTORY_TITLE')}</Text>
         <Text style={[styles.headerSub, RTL.text]}>

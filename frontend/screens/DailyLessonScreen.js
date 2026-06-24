@@ -18,10 +18,10 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fetchTodayContent }                    from '../api/endpoints';
 import { useUser }                              from '../context/UserContext';
@@ -63,7 +63,7 @@ export default function DailyLessonScreen() {
   // ── Loading ──
   if (status === 'loading') {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={[styles.loadingText, RTL.text]}>{t('LESSON_LOADING')}</Text>
@@ -75,7 +75,7 @@ export default function DailyLessonScreen() {
   // ── Error ──
   if (status === 'error' || !lesson) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.centered}>
           <Text style={styles.errorEmoji}>📡</Text>
           <Text style={[styles.errorText, RTL.text]}>{t('LESSON_ERROR')}</Text>
@@ -91,7 +91,7 @@ export default function DailyLessonScreen() {
           dailyMission, image, videoUrl, videoTitle } = lesson;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
