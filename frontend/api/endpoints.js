@@ -234,7 +234,11 @@ async function saveHealthMetrics(payload) {
  *   current_week: number, baseline_rhr: number|null }>}
  */
 async function fetchUserState(userId) {
-  const res = await getInstance().get(ROUTES.USER_STATE, { params: { user_id: userId } });
+  // 60s: the Render free tier cold-starts in ~30-40s; the local cache covers
+  // the UI instantly while this background refresh waits for the server.
+  const res = await getInstance().get(ROUTES.USER_STATE, {
+    params: { user_id: userId }, timeout: 60000,
+  });
   return res.data;
 }
 
@@ -264,7 +268,7 @@ async function setProgramStart(userId, startDate) {
 async function fetchTodayContent(userId, day) {
   const params = { user_id: userId };
   if (day != null) params.day = day;
-  const res = await getInstance().get(ROUTES.CONTENT_TODAY, { params, timeout: 30000 });
+  const res = await getInstance().get(ROUTES.CONTENT_TODAY, { params, timeout: 60000 });
   return res.data;
 }
 

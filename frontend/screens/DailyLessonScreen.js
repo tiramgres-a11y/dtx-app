@@ -36,7 +36,7 @@ const PHASE_LABEL = {
 };
 
 export default function DailyLessonScreen() {
-  const { userId } = useUser();
+  const { userId, currentDay } = useUser();
 
   const [lesson,    setLesson]    = useState(null);
   const [status,    setStatus]    = useState('loading'); // 'loading' | 'ok' | 'error'
@@ -44,13 +44,15 @@ export default function DailyLessonScreen() {
 
   const load = useCallback(async () => {
     try {
-      const data = await fetchTodayContent(userId);
+      // Pass the locally-computed day so the lesson matches the on-device
+      // counter even if the backend's stored start date is momentarily stale.
+      const data = await fetchTodayContent(userId, currentDay);
       setLesson(data);
       setStatus('ok');
     } catch (_err) {
       setStatus('error');
     }
-  }, [userId]);
+  }, [userId, currentDay]);
 
   useEffect(() => { load(); }, [load]);
 

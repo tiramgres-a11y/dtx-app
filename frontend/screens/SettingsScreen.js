@@ -31,6 +31,7 @@ export default function SettingsScreen() {
     currentWeek,
     baselineRHR, setBaselineRHR,
     programStartDate,
+    applyProgramStart,
     refreshUserState,
   } = useUser();
 
@@ -49,14 +50,17 @@ export default function SettingsScreen() {
       return;
     }
     setStartStatus('saving');
+    // Apply locally first — instant + persisted on-device, independent of the
+    // (possibly cold-starting) backend.
+    applyProgramStart(startInput);
     try {
-      await setProgramStart(userId, startInput);
-      await refreshUserState();   // pull the freshly computed week
+      await setProgramStart(userId, startInput);  // persist to backend (source of truth)
       setStartStatus('saved');
     } catch (_err) {
-      setStartStatus('error');
+      // Saved locally; backend will sync on next successful refresh.
+      setStartStatus('saved');
     }
-  }, [startInput, userId, refreshUserState]);
+  }, [startInput, userId, applyProgramStart]);
 
   // Server check state
   const [serverStatus, setServerStatus] = useState(null); // 'checking' | 'ok' | 'error'

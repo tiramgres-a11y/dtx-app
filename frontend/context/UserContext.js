@@ -1,16 +1,19 @@
 // @flow
 /**
  * UserContext — global user config shared across all screens.
- * Stores: userId, currentWeek, baselineRHR, programStartDate.
+ * Stores: userId, currentWeek, currentDay, baselineRHR, programStartDate.
  *
- * currentWeek is NOT hardcoded — on launch it is fetched from the backend,
- * which computes it live from the stored program start date so the week
- * advances on its own as the days pass.
+ * The program week/day are computed CLIENT-SIDE from a locally-persisted
+ * start date (instant, offline-resilient). The backend remains the source of
+ * truth and refreshes the cache in the background — so a cold-starting server
+ * never resets the counter to day 1.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 import { fetchUserState } from '../api/endpoints';
+import { computeWeek, computeDay } from '../utils/programDay';
+import * as localStore from '../services/localStore';
 
 const UserContext = createContext(null);
 
@@ -18,22 +21,47 @@ const UserContext = createContext(null);
 const USER_ID = 'user-demo-001';
 
 export function UserProvider({ children }) {
-  const [userId]                              = useState(USER_ID);
-  const [currentWeek,     setCurrentWeek]     = useState(1);
-  const [baselineRHR,     setBaselineRHR]     = useState(null);
+  const [userId]                                = useState(USER_ID);
   const [programStartDate, setProgramStartDate] = useState(null);
+  const [currentWeek,      setCurrentWeek]      = useState(1);
+  const [currentDay,       setCurrentDay]       = useState(1);
+  const [baselineRHR,      setBaselineRHR]      = useState(null);
 
-  // Pull the live program state (computed week + start date) from the backend.
+  // Apply a start date: recompute week/day locally and persist to the device.
+  const applyProgramStart = useCallback((startDate) => {
+    if (!startDate) return;
+    setProgramStartDate(startDate);
+    setCurrentWeek(computeWeek(startDate));
+    setCurrentDay(computeDay(startDate));
+    localStore.setProgramStart(startDate);
+  }, []);
+
+  // 1) Instant: load the locally-cached start date and compute the day offline.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cached = await localStore.getProgramStart();
+      if (!cancelled && cached) {
+        setProgramStartDate(cached);
+        setCurrentWeek(computeWeek(cached));
+        setCurrentDay(computeDay(cached));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // 2) Background: refresh from the backend (source of truth) and re-cache.
   const refreshUserState = useCallback(async () => {
     try {
       const state = await fetchUserState(USER_ID);
-      if (state?.current_week)        setCurrentWeek(state.current_week);
-      if (state?.program_start_date)  setProgramStartDate(state.program_start_date);
+      if (state?.program_start_date) {
+        applyProgramStart(state.program_start_date);
+      }
       if (state?.baseline_rhr != null) setBaselineRHR(state.baseline_rhr);
     } catch (_err) {
-      // Offline / cold start — keep whatever we have; user can retry.
+      // Offline / cold start — keep the locally-computed values.
     }
-  }, []);
+  }, [applyProgramStart]);
 
   useEffect(() => { refreshUserState(); }, [refreshUserState]);
 
@@ -41,8 +69,10 @@ export function UserProvider({ children }) {
     <UserContext.Provider value={{
       userId,
       currentWeek,      setCurrentWeek,
+      currentDay,
       baselineRHR,      setBaselineRHR,
-      programStartDate, setProgramStartDate,
+      programStartDate,
+      applyProgramStart,
       refreshUserState,
     }}>
       {children}
